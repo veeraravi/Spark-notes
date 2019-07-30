@@ -1,0 +1,41 @@
+1.       File Ingestion –
+
+a.       Ability to load data from multiple sources – web, NAS, DBs
+
+b.      Ability to ingest data of multiple format (csv, json, xml)
+
+c.       Ability to ingest schema evolving (attribute addition, deletion, sequence change)
+
+d.      Incremental data load.
+
+2.       Building semantic meta data – both on raw data and on curated data – This is key for building semantic data lake
+
+a.       Building semantic metadata hub
+
+b.      Ability to query the hub using
+
+3.       Building raw data hub
+
+a.       Self-describing folder structure (e.g. data stored in S3 organized in timeline YYYY/MM/DD, and organized by ISINs)
+
+b.      Ability to store multiple file formats (ORC, Parquet, Avro, origin formats)
+
+4.       Ability to auto-scale compute units based on load
+
+5.       Data curation compute capability
+
+a.       Governance
+
+                                                               i.      Data Validation and Cleansing - Example – currency and country validation
+
+                                                             ii.      Data Enrichment – Security Codes enriched with the Full Name of the Security issuing company, etc
+
+b.      Aggregation
+
+                                                               i.      Running total/ running average etc of volumes traded over a quarter, in an exchange, etc.
+
+6.       Curated Data storage capability
+
+a.       Multiple storage as per need – NoSQL, RDBMS, S3 file storage
+
+7.       Ability to query data using query engines like Drill for BI/reporting related use cases

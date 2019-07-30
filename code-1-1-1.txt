@@ -1,0 +1,578 @@
+
+SELECT
+bigint(trim(t1.trans_id)) as pmd_ar_trans_id,
+trim(t1.acqr_refer_no) as pmd_ar_arn,
+t1.cm11 pmd_ar_cm_11,
+concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) pmd_ar_cm_13,
+t1.cm15 AS pmd_ar_cm_15,
+'0' as pmd_ar_clnt_orgn_id, --
+trim(t8.iso_2_pos_cd) as pmd_ar_ctry_id,
+
+trim(t1.prod_ia_cd) as pmd_ar_prod_id,
+trim(nvl(t1.post_dt,'')) as pmd_ar_bus_proc_dt,
+trim(nvl(t1.trans_dt,'')) as pmd_ar_trans_dt,
+case when trim(t1.trans_cd) IN  ('0410C','0410P') then t1.trans_am*-1 else  t1.trans_am end pmd_ar_bill_am,
+trim(t6.iso_alpha_cd) as pmd_ar_bill_am_curr_cd,
+t1.subm_trans_am as pmd_ar_subm_trans_am,
+trim(t7.iso_alpha_cd) as pmd_ar_subm_trans_am_curr_cd,
+0 as pmd_ar_bill_usd_am,
+trim(t1.se10) as pmd_ar_se_acct_no,
+trim(t2.se_sic_cd) as pmd_ar_se_sic_cd,
+trim(t2.se_mer_ctgy_cd) as pmd_ar_se_mcc_cd,
+trim(t1.trans_cd) as pmd_ar_trans_type_cd,
+'' as pmd_ar_trans_subtype_cd,
+trim(t1.btch_no) as pmd_ar_btch_no,
+trim(nvl(t1.bill_thru_dt,'')) as pmd_ar_bill_thru_dt,
+trim(t1.ardw_sor_org) as pmd_ar_mkt_cd,
+COALESCE(t3.gaicodeacctstatd,t4.acc_int_status,t10.sta_cd1,t11.sta_cd) pmd_ar_acct_sta_cd,
+trim(nvl(COALESCE(t3.gaidatelaststatchgd,t4.acc_date_last_stat_chg),'')) pmd_ar_acct_sta_dt,
+trim(nvl(COALESCE(t3.gaidateplstexprd,t5.crd_amed_date_expire,t10.plstc_expr_dt,t11.card_expr_mo_yr),'')) pmd_ar_plstc_expr_dt,
+trim(nvl(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr),'')) pmd_ar_cm_since_dt,
+trim(nvl(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr),'')) pmd_ar_card_iss_dt,
+trim(t1.device_pan) as pmd_cons_ar_dpan,
+0 as pmd_opp_id_se,
+0 as pmd_opp_id_corp,
+trim(t1.logo_grp) as pmd_ar_logo_grp,
+trim(t1.plan_grp) as pmd_ar_plan_grp,
+trim(t1.flm_seq_no) as pmd_ar_flm_sq_no,
+'' as pmd_cm_chan,
+trim(t1.config_id) as pmd_ar_config_id,
+case when trim(t1.srce_sys)='TRIUMPH' then 'CONSTRI' when trim(t1.srce_sys)='GLOBESTAR' then 'CONSGSTAR' when trim(t1.srce_sys)='MNS' then 'CONSMNS'  when trim(t1.srce_sys)='APAR' then 'CONSAPAR' else  'CONSUNK' end pmd_ar_sor,
+trim(t1.list_idx) as pmd_ar_list_idx,
+'${hiveconf:initial.processing.date}' AS pmd_ar_init_proc_dt,
+'' as pmd_ar_trans_cd_cat_cd,
+'' as pmd_ar_trans_seq_no,
+'' as pmd_ar_btch_sub_cd,
+'' as pmd_ar_db_cr_cd,
+'' as pmd_ar_fin_ctgy_cd,
+'' as pmd_ar_srce_trans_cd,
+'' as pmd_ar_srce_trans_type_cd,
+trim(t9.iso_mer_ctgy_cd) as pmd_seller_se_mcc,
+'' as pmd_ar_srce_lgc_modl_cd,
+'' as pmd_ar_trans_plan_type_cd,
+'' as pmd_ar_base_acct_id 
+FROM cstonedb3.ardw_trans_unbilled_keys t1
+LEFT OUTER JOIN cstonedb3.gms_merchant_char t2      ON trim(t1.se10) = trim(t2.se10)
+LEFT OUTER JOIN cstonedb3.triumph_demographics t3   ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) = t3.CM13
+LEFT OUTER JOIN cstonedb3.gstar_account_details  t4 ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) = t4.CM13
+LEFT OUTER JOIN cstonedb3.gstar_card_details t5     ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) = t5.CM13
+LEFT OUTER JOIN crt_currency  t6                    ON trim(t6.iso_no_cd)=trim(t1.bill_curr_cd)
+LEFT OUTER JOIN crt_currency  t7                    ON trim(t7.iso_no_cd)=trim(t1.subm_curr_cd)
+LEFT OUTER JOIN crt_country t8                      ON trim(t8.ctry_id)=trim(t1.iss_ctry_cd)
+LEFT OUTER JOIN cstonedb3.gdr_se_characteristics t9 ON trim(t1.se10)=trim(t9.se_no)
+LEFT OUTER JOIN cstonedb3.mns_demographics_ar t10   ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2))=t10.CM13
+LEFT OUTER JOIN cstonedb3.apa_ar_demographic t11    ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2))=t11.CM13
+WHERE trim(t1.srce_sys) in ('TRIUMPH','GLOBESTAR','MNS','APAR') AND t1.cstone_feed_key IN (${hiveconf:extraction.ardw.feedkeys})
+AND upper(trim(NVL(t1.spnd_nonspnd_in,""))) <> "NS"
+AND bus_yr_mo IN (${hiveconf:extraction.ardw.year.month})
+
+
+UNION ALL
+
+
+select
+CASE WHEN trim(t12.ar_sor)='TSYS'  then  bigint(trim(t1.roc_id))  else bigint(trim(t1.trans_id)) end pmd_ar_trans_id,
+trim(t1.src_ref_no) as pmd_ar_arn,
+substr(t3.card_account_number,1,11) pmd_ar_cm_11,
+concat(substr(t3.card_account_number,1,11),substr(t3.card_account_number,13,2)) pmd_ar_cm_13,
+t3.card_account_number AS pmd_ar_cm_15,
+t1.clnt_orgn_id as pmd_ar_clnt_orgn_id,
+trim(t8.iso_2_pos_cd) as pmd_ar_ctry_id,
+trim(t1.prod_id) as pmd_ar_prod_id,
+trim(nvl(t1.bus_proc_dt    ,'')) as pmd_ar_bus_proc_dt,
+trim(nvl(t1.trans_dt,'')) as pmd_ar_trans_dt,
+t1.bill_dcml_am as pmd_ar_bill_am,
+trim(t1.bill_curr_cd) as pmd_ar_bill_am_curr_cd,
+t1.subm_curr_dcml_am as pmd_ar_subm_trans_am,
+trim(t1.subm_curr_cd) as pmd_ar_subm_trans_am_curr_cd,
+t1.bill_usd_am as pmd_ar_bill_usd_am,
+trim(t1.se_acct_no) as pmd_ar_se_acct_no,
+trim(t1.sic_cd) as pmd_ar_se_sic_cd,
+trim(t5.se_mer_ctgy_cd) as pmd_ar_se_mcc_cd,
+trim(t1.trans_type_cd) as pmd_ar_trans_type_cd,
+trim(t2.intr_trans_sub_type_cd) as pmd_ar_trans_subtype_cd,
+trim(t1.btch_no) as pmd_ar_btch_no,
+trim(nvl(t6.bill_dt,'')) as pmd_ar_bill_thru_dt,
+trim(t1.mkt_cd) as pmd_ar_mkt_cd,
+trim(t3.acct_sta_cd) pmd_ar_acct_sta_cd,
+trim(t3.acct_sta_dt) as pmd_ar_acct_sta_dt,
+trim(t3.plstc_expr_dt) as pmd_ar_plstc_expr_dt, 
+trim(t3.mbr_since_dt) as pmd_ar_cm_since_dt,
+trim(t3.card_iss_dt) as pmd_ar_card_iss_dt,
+trim(t2.vpay_proxy_acct_no) as pmd_cons_ar_dpan,
+0 as pmd_opp_id_se,
+0 as pmd_opp_id_corp,
+'' as pmd_ar_logo_grp,
+'' as pmd_ar_plan_grp,
+'' as pmd_ar_flm_sq_no,
+'' as pmd_cm_chan,
+'' as pmd_ar_config_id,
+case when trim(t12.ar_sor)='GLOBESTAR' then 'CORPGSTAR' when trim(t12.ar_sor)='TSYS' then 'CORPTSYS' when trim(t12.ar_sor)='CARS' then 'CORPCARS' when trim(t12.ar_sor)='APA_AR' then 'CORPAPAR' when trim(t12.ar_sor)='CARE' then 'CORPCARE'  when trim(t12.ar_sor)='MNS' then 'CORPMNS'  else  'CORPUNK' end pmd_ar_sor,
+'' as pmd_ar_list_idx,
+'${hiveconf:initial.processing.date}' AS pmd_ar_init_proc_dt,
+case  when trim(t12.ar_sor)='CARS'  and t2.intr_db_cr_cd IS NOT NULL then trim(nvl(COALESCE(CONCAT('CA',t1.btch_no,t1.btch_sub_cd,t2.intr_db_cr_cd,t2.intr_trans_type_cd,t2.intr_trans_sub_type_cd,t2.intr_fin_ctgy_cd,t1.trans_type_cd)),'CA'))
+when trim(t12.ar_sor)='GLOBESTAR'  and t2.intr_db_cr_cd IS NOT NULL then trim(nvl(COALESCE(CONCAT(t2.trans_srce_type_cd,t1.srce_trans_cd,t2.intr_db_cr_cd,t2.intr_trans_type_cd,t2.intr_trans_sub_type_cd,t2.intr_fin_ctgy_cd,t1.trans_type_cd)),'G*'))
+when trim(t12.ar_sor)='TSYS'  and  t2.intr_db_cr_cd IS NOT NULL then trim(nvl(COALESCE(CONCAT(t2.trans_srce_type_cd,t1.srce_trans_cd,t2.intr_db_cr_cd,t2.intr_trans_type_cd,t2.intr_trans_sub_type_cd,t2.intr_fin_ctgy_cd,t1.trans_type_cd)),'TSYS'))
+when trim(t12.ar_sor) IN ('APA_AR','CARE','MNS') then trim(nvl(COALESCE(CONCAT(t12.ar_sor,t1.trans_type_cd)),t12.ar_sor))
+when trim(t12.ar_sor)='TSYS'  and  trim(t1.prod_id) IN ('GWR','JA6') and trim(t3.acct_type_cd)='000008'  then trim(nvl(COALESCE(CONCAT('TSYSLEG',t1.trans_type_cd)),t12.ar_sor)) end  pmd_ar_trans_cd_cat_cd,
+t1.trans_seq_no as pmd_ar_trans_seq_no,
+t1.btch_sub_cd as pmd_ar_btch_sub_cd,
+case  when trim(t2.intr_db_cr_cd)  IN ('001','003') then 'DR'  when trim(t2.intr_db_cr_cd)  IN ('002','004') then 'CR' end pmd_ar_db_cr_cd,
+t2.intr_fin_ctgy_cd as pmd_ar_fin_ctgy_cd,
+t1.srce_trans_cd as pmd_ar_srce_trans_cd,
+t2.trans_srce_type_cd as pmd_ar_srce_trans_type_cd,
+trim(t11.iso_mer_ctgy_cd) as pmd_ar_seller_se_mcc,
+trim(t1.srce_lgc_modl_cd) as pmd_ar_srce_lgc_modl_cd,
+trim(t2.trans_plan_type_cd) as pmd_ar_trans_plan_type_cd,
+trim(t1.base_acct_id) as pmd_ar_base_acct_id
+from cstonedb3.gdr_corp_trans_dtl_unbilled t1
+LEFT OUTER JOIN cstonedb3.gdr_corp_trans_add_dtl t2  ON (t1.clnt_orgn_id=t2.clnt_orgn_id AND t1.bus_proc_dt=t2.bus_proc_dt
+                           AND t1.btch_no=t2.btch_no AND t1.trans_seq_no=t2.trans_seq_no AND t1.base_acct_id=t2.base_acct_id)
+LEFT OUTER JOIN cstonedb3.gdr_card_acct t3           ON t1.base_acct_id=t3.base_acct_id AND t1.basic_supp_no=t3.basic_supp_no
+LEFT OUTER JOIN psu_snapshot t4                      ON substr(t3.card_account_number,1,6)=t4.trim_inst_id
+LEFT OUTER JOIN cstonedb3.gms_merchant_char t5       ON trim(t1.se_acct_no)=trim(t5.se10)
+LEFT OUTER JOIN cstonedb3.gdr_bill_cycle t6          ON t1.bill_cycle_id=t6.bill_cycle_id
+LEFT OUTER JOIN crt_country t8                       ON trim(t8.ctry_id)=trim(t4.ctry_id)
+LEFT OUTER JOIN cstonedb3.gdr_corp_product t9        ON trim(t9.prod_id)=trim(t3.prod_id)
+LEFT OUTER JOIN cstonedb3.gdr_corp_product_ext t10   ON trim(t9.prod_id)=trim(t10.prod_id)
+LEFT OUTER JOIN cstonedb3.gdr_se_characteristics t11 ON  trim(t1.se_acct_no)=trim(t11.se_no)
+LEFT OUTER JOIN corp_prod_id_mapping t12             ON trim(t1.prod_id)=trim(t12.prod_id)
+WHERE trim(t10.prtr_type_cd)!='002'
+AND t1.gcp_entitlement NOT LIKE '%REX%' 
+AND t1.clnt_orgn_id NOT LIKE '%RX%' 
+AND trim(t1.opt_cd)='I'
+AND t1.cstone_feed_key IN   (${hiveconf:extraction.gdr.feedkeys});
+
+
+
+
+
+
+
+===========================================================
+import org.apache.spark.sql.functions._
+var df = sc.parallelize(Seq(("foobar", "foo"))).toDF("a", "b")
+df = df.select(col("a"), col("b"),concat(substring(df("a"), 4, 6),substring(df("a"),3,1)).as("c"),"0".as("d"))
+df = df.select(trim(col("a")).as("a"),trim(col("b")).as("b"),concat(substring(df("a"), 4, 6),substring(df("a"),3,1)).as("c"),lit(0).alias("e"),makeEmptyStringsNull(lit(null)).as("f"),df("e").cast("int").as("g"))
+
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.{trim, length, when}
+import org.apache.spark.sql.Column
+
+val ardw_df = sqlContext.sql("select * from cstonedb3.ardw_trans_unbilled_keys");
+
+val gms_merchant = sqlContext.sql("select * from cstonedb3.gms_merchant_char");
+val triumph_demographics = sqlContext.sql("select * from cstonedb3.triumph_demographics"); 
+val gstar_account_details = sqlContext.sql("select * from cstonedb3.gstar_account_details");
+val gstar_card_details = sqlContext.sql("select * from cstonedb3.gstar_card_details"); 
+val crt_currency = sqlContext.sql("select * from crt_currency");   
+val crt_country = sqlContext.sql("select * from crt_country"); 
+val gdr_se_characteristics = sqlContext.sql("select * from cstonedb3.gdr_se_characteristics");
+val mns_demographics_ar = sqlContext.sql("select * from cstonedb3.mns_demographics_ar");
+val apa_ar_demographic = sqlContext.sql("select * from cstonedb3.apa_ar_demographic");
+
+
+concat(substring(col("a"), 4, 6),substring(col("a"),1,3)).as("c")
+concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) pmd_ar_cm_13,
+
+
+val res =  ardw_df.select(ardw_df("trans_id").cast("int").as("pmd_ar_trans_id"),
+				ardw_df("acqr_refer_no").as("pmd_ar_arn"),
+				ardw_df("cm11").as("pmd_ar_cm_11"),
+				concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)).as("pmd_ar_cm_13"),					
+				ardw_df("cm15").as("pmd_ar_cm_15"),
+				crt_country(iso_2_pos_cd).as("pmd_ar_ctry_id"),				
+				ardw_df("prod_ia_cd").as("pmd_ar_prod_id"),
+				
+					
+
+   )
+
+
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.{trim, length, when}
+import org.apache.spark.sql.Column
+
+val ardw_df = sqlContext.sql("select * from cstonedb3.ardw_trans_unbilled_keys");
+
+val gms_merchant = sqlContext.sql("select * from cstonedb3.gms_merchant_char");
+val triumph_demographics = sqlContext.sql("select * from cstonedb3.triumph_demographics"); 
+val gstar_account_details = sqlContext.sql("select * from cstonedb3.gstar_account_details");
+val gstar_card_details = sqlContext.sql("select * from cstonedb3.gstar_card_details"); 
+val crt_currency = sqlContext.sql("select * from crt_currency");   
+val crt_country = sqlContext.sql("select * from crt_country"); 
+val gdr_se_characteristics = sqlContext.sql("select * from cstonedb3.gdr_se_characteristics");
+val mns_demographics_ar = sqlContext.sql("select * from cstonedb3.mns_demographics_ar");
+val apa_ar_demographic = sqlContext.sql("select * from cstonedb3.apa_ar_demographic");
+
+def nullCheck(id:String) = if(id != null && !id.isEmpty) id.trim else ""
+
+val makeEmptyStringsNull = udf(nullCheck(_:String))
+
+val func = udf( (s:String) => s )
+
+
+val joined_df1 = ardw_df.join(gms_merchant_char,ardw_df("se10") === gms_merchant_char("se10"),"left_outer")
+                       .join(triumph_demographics,concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)) === triumph_demographics("CM13"),"left_outer")
+					   .join(gstar_account_details,concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)) === gstar_account_details("CM13"),"left_outer")
+					   .join(gstar_card_details,concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)) === gstar_card_details("CM13"),"left_outer")
+					   .join(crt_currency,ardw_df("bill_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_currency,ardw_df("subm_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_country,ardw_df("iss_ctry_cd") === crt_country("ctry_id"),"left_outer")
+					   .join(gdr_se_characteristics,ardw_df("se10") === gdr_se_characteristics("se_no"),"left_outer")
+					   .join(mns_demographics_ar,concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)) === mns_demographics_ar("CM13"),"left_outer")
+					   .join(crt_country,concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)) === apa_ar_demographic("CM13"),"left_outer").select(trim(ardw_df("trans_id")).cast("int").as("pmd_ar_trans_id"),
+ardw_df("acqr_refer_no").as("pmd_ar_arn"),
+ardw_df("cm11").as("pmd_ar_cm_11"),
+concat(substring(ardw_df("CM15"), 1,11),substring(ardw_df("CM15"),13,2)).as("pmd_ar_cm_13"),					
+ardw_df("cm15").as("pmd_ar_cm_15"),
+crt_country(iso_2_pos_cd).as("pmd_ar_ctry_id"),				
+ardw_df("prod_ia_cd").as("pmd_ar_prod_id"),
+makeEmptyStringsNull(ardw_df("post_dt")).as("pmd_ar_bus_proc_dt"), 
+makeEmptyStringsNull(ardw_df("trans_dt")).as("pmd_ar_trans_dt"), 
+case when trim(t1.trans_cd) IN  ('0410C','0410P') then t1.trans_am*-1 else  t1.trans_am end pmd_ar_bill_am,
+when(ardw_df("trans_cd") isin ("0410C","0410P"),ardw_df("trans_am")-1).otherwise(ardw_df("trans_am")).alias("pmd_ar_bill_am"),
+crt_country("iso_alpha_cd").as("pmd_ar_bill_am_curr_cd"), 
+ardw_df("subm_trans_am").as("pmd_ar_subm_trans_am"), 
+crt_country("iso_alpha_cd").as("pmd_ar_subm_trans_am_curr_cd"), 
+ardw_df("se10").as("pmd_ar_se_acct_no"), 
+gms_merchant_char("se_sic_cd").as("pmd_ar_se_sic_cd"), 
+gms_merchant_char("se_mer_ctgy_cd").as("pmd_ar_se_mcc_cd"), 
+ardw_df("trans_cd").as("pmd_ar_trans_type_cd"), 
+ardw_df("btch_no").as("pmd_ar_btch_no"), 
+makeEmptyStringsNull(ardw_df("bill_thru_dt")).as("pmd_ar_bill_thru_dt"), 
+ardw_df("ardw_sor_org").as("pmd_ar_mkt_cd"), 
+COALESCE(triumph_demographics("gaicodeacctstatd"),gstar_account_details("acc_int_status"),mns_demographics_ar("sta_cd1"),apa_ar_demographic("sta_cd")).as("pmd_ar_acct_sta_cd"),
+makeEmptyStringsNull(COALESCE(t3.gaidatelaststatchgd,t4.acc_date_last_stat_chg))).as("pmd_ar_acct_sta_dt"),
+makeEmptyStringsNull(COALESCE(t3.gaidateplstexprd,t5.crd_amed_date_expire,t10.plstc_expr_dt,t11.card_expr_mo_yr))).as("pmd_ar_plstc_expr_dt"),
+makeEmptyStringsNull(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr))).as("pmd_ar_cm_since_dt"),
+makeEmptyStringsNull(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr))).as("pmd_ar_card_iss_dt"),
+
+ardw_df("logo_grp").as("pmd_ar_logo_grp"), 
+ardw_df("plan_grp").as("pmd_ar_plan_grp"), 
+ardw_df("flm_seq_no").as("pmd_ar_flm_sq_no"), 
+
+ardw_df("config_id").as("pmd_ar_config_id"), 
+when(ardw_df("srce_sys")=== "TRIUMPH","CONSTRI")
+.when(ardw_df("srce_sys")=== "GLOBESTAR","CONSGSTAR")
+.when(ardw_df("srce_sys")=== "MNS","CONSMNS")
+.when(ardw_df("srce_sys")=== "APAR","CONSAPAR").otherwise("CONSUNK").alias("pmd_ar_sor"),
+ardw_df("list_idx").as("pmd_ar_list_idx"),
+'${hiveconf:initial.processing.date}'.as("pmd_ar_init_proc_dt"),
+''.as("pmd_ar_trans_cd_cat_cd"),
+''.as("pmd_ar_trans_seq_no"),
+''.as("pmd_ar_btch_sub_cd"),
+''.as("pmd_ar_db_cr_cd"),
+''.as("pmd_ar_fin_ctgy_cd"),
+''.as("pmd_ar_srce_trans_cd"),
+''.as("pmd_ar_srce_trans_type_cd"),
+trim(t9.iso_mer_ctgy_cd) as pmd_seller_se_mcc"),
+''.as("pmd_ar_srce_lgc_modl_cd"),
+''.as("pmd_ar_trans_plan_type_cd"),
+''.as("pmd_ar_base_acct_id"), 
+ardw_df("ardw_sor_org").as("pmd_ar_mkt_cd"), 
+
+					   
+					   
+					   
+val joined_df2 = ardw_df.join(gms_merchant_char,ardw_df("se10") === gms_merchant_char("se10"),"left_outer")
+                       .join(triumph_demographics,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === triumph_demographics("CM13"),"left_outer")
+					   .join(gstar_account_details,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === gstar_account_details("CM13"),"left_outer")
+					   .join(gstar_card_details,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === gstar_card_details("CM13"),"left_outer")
+					   .join(crt_currency,ardw_df("bill_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_currency,ardw_df("subm_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_country,ardw_df("iss_ctry_cd") === crt_country("ctry_id"),"left_outer")
+					   .join(gdr_se_characteristics,ardw_df("se10") === gdr_se_characteristics("se_no"),"left_outer")
+					   .join(mns_demographics_ar,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === mns_demographics_ar("CM13"),"left_outer")
+					   .join(crt_country,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === apa_ar_demographic("CM13"),"left_outer")
+					   .select(ardw_df("trans_id").cast("int").as("pmd_ar_trans_id"),
+   )
+	
+   
+==================================================================================
+package com.mmm.speckdata.process.driver
+
+import org.apache.log4j.Level
+import org.apache.log4j.Logger
+import java.util.Properties
+import java.io.IOException
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+import java.sql.Connection
+import java.sql.DriverManager
+import java.time.Instant
+import com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement
+import org.apache.spark.sql.DataFrame
+
+object WatchDogDataProcessDriver {
+    def main(args: Array[String]): Unit = {
+      var logger = Logger.getRootLogger
+      logger.setLevel(Level.ERROR)
+      Logger.getLogger("org").setLevel(Level.OFF);
+      Logger.getLogger("akka").setLevel(Level.OFF);
+      Logger.getLogger("com").setLevel(Level.OFF);
+      
+      var properties = new Properties()
+      try {
+        properties.load(FileSystem.get(new Configuration()).open(new Path("/filtrete/WatchDogStream.props")))
+      } catch {
+        case ex: IOException => {
+          System.err.println("Unable to fetch Configuration details...")
+          logger.error("Unable to fetch Configuration details ...")
+          //System.exit(1)
+        }
+      }
+     try{
+        val shufflePartition = args(0).toInt//properties.getProperty("shufflePartition_process").toInt
+        val hivemaxpartitions = args(1).toInt
+        val sqlDbConnStr = properties.get("dbServer") + ";" +
+                          "database=" + properties.get("database") + ";" +
+                          "user=" + properties.get("dbUser") + ";" +
+                          "password=" + properties.get("dbPassword")
+        
+        val sqlConn: Connection = getSqlJdbcConnection(sqlDbConnStr)
+
+        val spark = SparkSession
+                      .builder()
+                      .appName("WatchDogDataProcessDriver")
+                      .config("hive.exec.dynamic.partition", true)
+                      .config("hive.exec.dynamic.partition.mode", "nonstrict")
+                      .config("hive.exec.max.dynamic.partitions",hivemaxpartitions)
+                      .config("hive.exec.parallel", true)
+                      .config("hive.enforce.bucketing", true)
+                      .config("spark.sql.shuffle.partitions",s"$shufflePartition")
+                      .config("spark.ui.showConsoleProgress",false)
+                      .enableHiveSupport()
+                      .getOrCreate()
+        val processStartTime = Instant.now.getEpochSecond
+        println(s"--------------- Indoor Speck Data Process Start: $processStartTime")
+        // Process Start Entry into IndoorJobControl table
+        val IndoorJobControlInsertQuery = s"INSERT INTO IndoorJobControl (processstartdt,processstartUTS,status) values (getUTCdate(),$processStartTime,'Inprocess')"
+        updateDB(sqlConn,IndoorJobControlInsertQuery)
+        sqlConn.close()
+        // Load DSTCalendar
+        val DSTOptions = new java.util.HashMap[String, String]()
+        DSTOptions.put("url", sqlDbConnStr)
+        DSTOptions.put("dbtable", "DSTCalendar")
+        val DST_DF = spark.read.format("jdbc").options(DSTOptions).load().select("year", "dst_start_unixTS","dst_end_unixTS")
+        DST_DF.createOrReplaceTempView("DSTCalendarTmp")
+  
+        // Load Indoor Job Control table
+        val IndoorJobControlOptions = new java.util.HashMap[String, String]()
+        IndoorJobControlOptions.put("url", sqlDbConnStr)
+        IndoorJobControlOptions.put("dbtable", "IndoorJobControl")
+        val IndoorJobControl_DF = spark.read.format("jdbc").options(IndoorJobControlOptions).load().select("status","processstartUTS","processstartdt","processenddt","processendUTS").filter("status='Processed'")
+        IndoorJobControl_DF.createOrReplaceTempView("IndoorJobControl")
+        
+        // Load IndoorAirQualityDevice
+        val indoorDeviceOptions = new java.util.HashMap[String, String]()
+        indoorDeviceOptions.put("url", sqlDbConnStr)
+        indoorDeviceOptions.put("dbtable", "IndoorAirQualityDevice")
+        val IAQD_DF = spark.read.format("jdbc").options(indoorDeviceOptions).load()
+        val IAQD_ACTIVE_DF = IAQD_DF.select("indoorDeviceID","accountID","indoorDeviceToken","gmtOffset","dstOffset").filter("activeFlag=1")
+        IAQD_ACTIVE_DF.createOrReplaceTempView("IndoorAirQualityDevice")
+        
+        // Get latest sucessful processed Unix Timestamp value from IndoorJobControl table
+        val maxProcessStartUTS = spark.sql("select nvl(max(processstartUTS),0) maxUTS from IndoorJobControl").select("maxUTS").collectAsList().get(0).getLong(0)
+        println(s"Process data between.. $maxProcessStartUTS and $processStartTime")
+  
+        //Added on 3/6/2018
+        //Get data from IndoorSpeckDeviceDataTmp
+        
+        val IndoorSpeckDeviceDataTmp_query =  s"select indoordeviceid,WDDataTS,speckdatahr,temperature,humidity,Ultrafine, PM2_5,AQI,createdTS from watchdogdata where createdTS > $maxProcessStartUTS and createdTS <= $processStartTime"
+        val IndoorSpeckDeviceDataTmp_DF = spark.sql(IndoorSpeckDeviceDataTmp_query).persist()
+        IndoorSpeckDeviceDataTmp_DF.createOrReplaceTempView("WatchDogDeviceDataTmp_Spark")
+      
+        
+        //Get data from Hive IndoorSpeckDeviceDataTmp table into Spark for processing
+        val IndoorSpeckDataTmp_Query = s"select distinct B.speckDataHr, cast(FROM_UNIXTIME(B.WDDataTS,'yyyy') as string) as utcYear, cast(FROM_UNIXTIME(B.WDDataTS,'yyyyMM') as string) as utcMonth, cast(FROM_UNIXTIME(B.WDDataTS,'yyyyMMdd') as string) as utcDate, "+
+	   s"case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600), 'yyyyMMddHH') else DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600), 'yyyyMMddHH') end as localHour, "+
+	   s"case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600), 'yyyyMMdd') else DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600), 'yyyyMMdd') end as localDate, "+
+	   s"case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600), 'yyyyMM') else DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600), 'yyyyMM') end as localMonth "+
+	   s"from IndoorAirQualityDevice A JOIN WatchDogDeviceDataTmp_Spark B on A.indoorDeviceID = B.indoorDeviceId JOIN DSTCalendarTmp C on cast(FROM_UNIXTIME(B.WDDataTS,'yyyy') as string) = C.year "+
+	   s"where B.createduts > $maxProcessStartUTS and B.createduts <= $processStartTime"
+        val IndoorSpeckDataTmp_DF = spark.sql(IndoorSpeckDataTmp_Query).persist()
+        IndoorSpeckDataTmp_DF.createOrReplaceTempView("WDSpeckDataTS")
+        IndoorSpeckDataTmp_DF.show()
+        if(IndoorSpeckDataTmp_DF.count()>0){
+          
+              val minLocalDate = spark.sql("select min(localDate) minlocalDate from WDSpeckDataTS").select("minlocalDate").collectAsList().get(0).getString(0)
+              val maxLocalDate = spark.sql("select max(localHour) maxlocalDate from WDSpeckDataTS").select("maxlocalDate").collectAsList().get(0).getString(0)
+              val minLocalMonth = spark.sql("select min(localMonth) minlocalMonth from WDSpeckDataTS").select("minlocalMonth").collectAsList().get(0).getString(0)
+              val maxLocalMonth = spark.sql("select max(localMonth) maxlocalMonth from WDSpeckDataTS").select("maxlocalMonth").collectAsList().get(0).getString(0)
+              val minSpeckDataHr = spark.sql("select min(speckDataHr) minSpeckDataHr from WDSpeckDataTS").select("minSpeckDataHr").collectAsList().get(0).getString(0)
+              val maxSpeckDataHr = spark.sql("select max(speckDataHr) maxSpeckDataHr from WDSpeckDataTS").select("maxSpeckDataHr").collectAsList().get(0).getString(0)
+
+              //Added on 3/6/2018
+              //Get data from IndoorSpeckDeviceData
+              
+              /*val IndoorSpeckDeviceData_query = "select indoorDeviceId,WDDataTS, particleConcentration, temperature,humidity, cast(FROM_UNIXTIME(WDDataTS,'yyyy') as string) as utcYear "+
+                                                "from IndoorSpeckDeviceDataNew where Hr in (select distinct speckDataHr from WDSpeckDataTS)"*/
+              val IndoorSpeckDeviceData_query = "select indoorDeviceId,WDDataTS,  temperature,humidity, Ultrafine, PM2_5,AQI,cast(FROM_UNIXTIME(WDDataTS,'yyyy') as string) as utcYear "+
+                                                s"from IndoorSpeckDeviceDataNew where hr >= \'$minSpeckDataHr\' and hr <= \'$maxSpeckDataHr\'"
+              val IndoorSpeckDeviceData_DF = spark.sql(IndoorSpeckDeviceData_query)
+              IndoorSpeckDeviceData_DF.createOrReplaceTempView("WatchDogDeviceData_Spark")
+        
+              /*
+               * Hourly Aggregate Processing
+               */ 
+              //Get data for all devices from IndoorSpeckDeviceData for distinct hours in IndoorSpeckDataTmp for Hourly processing UNION with data in IndoorSpeckDeviceDataTmp table 
+              /*val IndoorSpeckDataHourly_Query = s"(select indoorDeviceId,WDDataTS,particleConcentration, cast(FROM_UNIXTIME(WDDataTS,'yyyy') as string) as utcYear from IndoorSpeckDeviceDataTmp where createduts > $maxProcessStartUTS and createduts <= $processStartTime)  "+
+                                                 "UNION "+
+                                                 "(select indoorDeviceId,WDDataTS, particleConcentration, cast(FROM_UNIXTIME(WDDataTS,'yyyy') as string) as utcYear from IndoorSpeckDeviceData "+
+                                                 "where Hr in (select distinct speckDataHr from WDSpeckDataTS))"*/
+              
+              val IndoorSpeckDataHourly_Query = "select indoorDeviceId,WDDataTS,temperature,humidity, Ultrafine, PM2_5,AQI, cast(FROM_UNIXTIME(WDDataTS,'yyyy') as string) as utcYear from WatchDogDeviceDataTmp_Spark "+
+                                                "UNION "+
+                                                "select indoorDeviceId,WDDataTS,temperature,humidity, Ultrafine, PM2_5,AQI, utcYear from WatchDogDeviceData_Spark"
+              
+              val IndoorSpeckDataHourly_Query_DF = spark.sql(IndoorSpeckDataHourly_Query)
+              IndoorSpeckDataHourly_Query_DF.createOrReplaceTempView("WDDataHourly")
+
+           
+                    // Convert WDDataTS to local date and local hour
+              val IndoorHourlyLocal_Query =  "SELECT A.indoorDeviceID,  B.utcYear, B.WDDataTS, "+
+                                       "case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then (cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600) else (cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600) end as localUTS, "+
+                                       "case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600) else FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600) end as speckDataLocalTS, "+
+                                       "case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600), 'yyyyMMdd') else DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600), 'yyyyMMdd') end as localDate, "+
+                                       "case when B.WDDataTS between C.dst_start_unixTS and C.dst_end_unixTS then DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.dstOffset as bigint)*3600), 'HH') else DATE_FORMAT(FROM_UNIXTIME(cast(B.WDDataTS as bigint) + cast(A.gmtOffset as bigint)*3600), 'HH') end as localHour "+
+                                       "FROM IndoorAirQualityDevice A JOIN WDDataHourly B on A.indoorDeviceID = B.indoorDeviceId JOIN DSTCalendarTmp C on B.utcYear = C.year"
+val IndoorHourlyLocal_DF = spark.sql(IndoorHourlyLocal_Query)
+              IndoorHourlyLocal_DF.createOrReplaceTempView("WDDataHourlyLocal")
+                 
+              // Computer Hourly aggregatation
+              val IndoorHourlyAvg_Query = "SELECT indoorDeviceID, localHour, localDate,concat(localDate,localHour) as localDtHr, round(avg(Ultrafine),2) as avgUltrafine,round(avg(PM2_5),2) as avgPM2_5,round(avg(AQI),2) as avgAQI,count(*) as recordCount from WDDataHourlyLocal group by indoorDeviceID, localHour, localDate"
+              val IndoorHoulryAvg_DF = spark.sql(IndoorHourlyAvg_Query)
+              IndoorHoulryAvg_DF.createOrReplaceTempView("WDHoulryAvg")
+              //Insert Into IndoorAirQuality_Hourly Hive table
+              val IndoorAirQualityHourly_Query = "INSERT OVERWRITE TABLE WatchDogData_hourly PARTITION(localdate,localDtHr) "+
+                                                 "SELECT indoorDeviceId, avgUltrafine,avgPM2_5,avgAQI, recordCount, localHour, FROM_UNIXTIME(UNIX_TIMESTAMP()) as createdTS, localDate, localDtHr from WDHoulryAvg"
+              spark.sql(IndoorAirQualityHourly_Query)
+              
+              /*
+               * Daily Aggregate processing
+               */
+        
+               /*val IndoorSpeckDataDaily_Query = s"select indoordeviceId, (particleConcentration * recordcount) as particleSum,recordcount, localHour, localDate, substr(localDate,0,6) as month, localDtHr from IndoorAirQuality_Hourly "+
+                                                s"where localDate in (select distinct localdate from WDSpeckDataTS)"*/
+               val IndoorSpeckDataDaily_Query = s"select indoordeviceId, (ultrafine * recordcount) as ultrafineSum,(PM2_5 * recordcount) as pm2_5Sum,(AQI * recordcount) as aqiSum,recordcount, localHour, localDate, substr(localDate,0,6) as month, localDtHr from IndoorAirQuality_Hourly "+
+                                                s"where localdate >= $minLocalDate and localdate <= $maxLocalDate"
+               val IndoorSpeckDataDaily_DF = spark.sql(IndoorSpeckDataDaily_Query)
+               IndoorSpeckDataDaily_DF.createOrReplaceTempView("IndoorSpeckDataDailyLocal")
+               
+               val IndoorSpeckDailyAvg_Query = "select indoordeviceId, round((sum(particleSum) / sum(recordcount)),2) as avgParticleConcentration,sum(recordcount) as recordcount,localDate,month from IndoorSpeckDataDailyLocal group by month,localDate,indoordeviceId "
+               val IndoorSpeckDailyAvg_DF = spark.sql(IndoorSpeckDailyAvg_Query)
+               IndoorSpeckDailyAvg_DF.createOrReplaceTempView("IndoorSpeckDataDailyAvg")
+               
+              //Insert into IndoorAirQuality_Daily Hive table
+              val IndoorAirQualityDaily_Query = "INSERT OVERWRITE TABLE indoorairquality_daily PARTITION(month,localdate) "+
+                                                "SELECT indoorDeviceId, avgParticleConcentration,recordcount, FROM_UNIXTIME(UNIX_TIMESTAMP()) as createdTS, month,localDate from IndoorSpeckDataDailyAvg"
+              spark.sql(IndoorAirQualityDaily_Query)
+              
+             
+              /*
+               * Monthly Aggregation Processing
+               */
+              /*val IndoorSpeckDataMonthly_Query = "select indoordeviceId, (particleConcentration * recordcount) as particleSum,recordcount, substr(month,0,4) as year, month, localdate from IndoorAirQuality_Daily "+
+                                                 "where month in (select distinct localmonth from WDSpeckDataTS)"*/
+              val IndoorSpeckDataMonthly_Query = "select indoordeviceId, (particleConcentration * recordcount) as particleSum,recordcount, substr(month,0,4) as year, month, localdate from IndoorAirQuality_Daily "+
+                                                 s"where month >= $minLocalMonth and month <= $maxLocalMonth"
+              val IndoorSpeckDataMonthly_DF = spark.sql(IndoorSpeckDataMonthly_Query)
+              IndoorSpeckDataMonthly_DF.createOrReplaceTempView("IndoorSpeckDataMonthlyLocal")
+              
+              val IndoorSpeckMonthlyAvg_Query = "select indoordeviceId,round((sum(particleSum) / sum(recordcount)),2) as avgParticleConcentration,sum(recordcount) as recordcount, year, month from IndoorSpeckDataMonthlyLocal group by year, month, indoordeviceId"
+              val IndoorSpeckMonthlyAvg_DF = spark.sql(IndoorSpeckMonthlyAvg_Query)
+              IndoorSpeckMonthlyAvg_DF.createOrReplaceTempView("IndoorSpeckDataMonthlyAvg")
+        
+              //Insert into IndoorAirQuality_Monthly Hive table
+              val IndoorAirQualityMonthly_Query = "INSERT OVERWRITE TABLE indoorairquality_monthly PARTITION(month) "+
+                                                "SELECT indoorDeviceId, avgParticleConcentration,recordcount, year, FROM_UNIXTIME(UNIX_TIMESTAMP()) as createdTS, month from IndoorSpeckDataMonthlyAvg"
+              spark.sql(IndoorAirQualityMonthly_Query)
+          
+              /*
+               * Writing to SQL tables
+               */
+              
+              // Push Indoor Hourly Average for past 24 Hours from current date to SQL Table
+              val IndoorHourlySQL_Query = "select cast(CONCAT(indoorDeviceId,'_',localDate,'_',localHour) as string) as indoorDeviceKey, cast(indoorDeviceId as string) as indoorDeviceId, cast(localDate as string) as date, "+
+                                          "cast(localHour as string) as hour, particleconcentration,0, cast(FROM_UNIXTIME(UNIX_TIMESTAMP()) as string) as createdTS, cast(FROM_UNIXTIME(UNIX_TIMESTAMP()) as string) as modifiedTS "+
+                                          "from indoorairquality_hourly where localdthr >= FROM_UNIXTIME(UNIX_TIMESTAMP()-(24*60*60),'yyyyMMddHH')"
+              val IndoorHourlySQL_DF = spark.sql(IndoorHourlySQL_Query)
+              //IndoorHourlySQL_DF.show()
+              updateDFToSqlDB(spark,sqlDbConnStr,IndoorHourlySQL_DF,"usp_IndoorAirQuality_WD_Hourly_Upsert","IndoorAirQualityWDHourlyUpsert")
+              
+              // Push Indoor Daily Average for past 30 days from current date to SQL Table
+              val IndoorDailySQL_Query = "select cast(indoorDeviceId as string) as indoorDeviceId, month, localdate, particleconcentration, cast(FROM_UNIXTIME(UNIX_TIMESTAMP()) as string) as createdTS, cast(FROM_UNIXTIME(UNIX_TIMESTAMP()) as string) as modifiedTS "+
+                                         "from indoorairquality_daily where localdate >= FROM_UNIXTIME(UNIX_TIMESTAMP()-(30*24*60*60),'yyyyMMdd')"
+              val IndoorDailySQL_DF = spark.sql(IndoorDailySQL_Query)
+              //IndoorDailySQL_DF.show()
+              updateDFToSqlDB(spark,sqlDbConnStr,IndoorDailySQL_DF,"usp_IndoorAirQuality_WD_Daily_Upsert","IndoorAirQualityWDDailyUpsert")
+              // Push Indoor Monthly Average for past 12 months from current month to SQL Table
+              val IndoorMonthlySQL_Query = "select cast(indoorDeviceId as string) as indoorDeviceId, year, month, particleconcentration, cast(FROM_UNIXTIME(UNIX_TIMESTAMP()) as string) as createdTS, cast(FROM_UNIXTIME(UNIX_TIMESTAMP()) as string) as modifiedTS "+
+                                           "from indoorairquality_monthly where month >= FROM_UNIXTIME(UNIX_TIMESTAMP()-(365*24*60*60),'yyyyMMdd')"
+              val IndoorMonthlySQL_DF = spark.sql(IndoorMonthlySQL_Query)
+              //IndoorMonthlySQL_DF.show()
+              updateDFToSqlDB(spark,sqlDbConnStr,IndoorMonthlySQL_DF,"usp_IndoorAirQuality_WD_Monthly_Upsert","IndoorAirQualityWDMonthlyUpsert")
+              
+              // Insert into IndoorSpeckDeviceData from IndoorSpeckDataTmp after pushing data to SQL
+              /*
+              val IndoorSpeckDeviceData_InsertQuery = s"INSERT INTO TABLE IndoorSpeckDeviceData PARTITION(Yr,Month,Dt,Hr) SELECT indoorDeviceId,WDDataTS,particleConcentration,temperature,humidity, "+
+                                                      s"FROM_UNIXTIME(UNIX_TIMESTAMP()) as createdTS,FROM_UNIXTIME(UNIX_TIMESTAMP()) as modifiedTS, cast(FROM_UNIXTIME(WDDataTS,'yyyy') as string) as utcYear, "+
+                                                      s"cast(FROM_UNIXTIME(WDDataTS,'yyyyMM') as string) as utcMonth,cast(FROM_UNIXTIME(WDDataTS,'yyyyMMdd') as string) as utcDate, speckDataHr from IndoorSpeckDeviceDataTmp where createduts > $maxProcessStartUTS and createduts <= $processStartTime"
+                    */
+              val IndoorSpeckDeviceData_InsertQuery = s"INSERT INTO TABLE IndoorSpeckDeviceDataNew PARTITION(Hr) SELECT indoorDeviceId,WDDataTS,particleConcentration,temperature,humidity, "+
+                                                      s"FROM_UNIXTIME(UNIX_TIMESTAMP()) as createdTS,FROM_UNIXTIME(UNIX_TIMESTAMP()) as modifiedTS, speckDataHr from WatchDogDeviceDataTmp_Spark"
+                                              
+                    
+          
+              spark.sql(IndoorSpeckDeviceData_InsertQuery)
+              
+        }
+  
+        //Update IndoorJobControl status after successful process
+        val curEndTime = Instant.now.getEpochSecond
+        val sqlConn1: Connection = getSqlJdbcConnection(sqlDbConnStr)
+        val IndoorJobControlUpdateQuery = s"UPDATE IndoorJobControl SET status='Processed', processenddt = getUTCdate(), processendUTS = $curEndTime where status = 'InProcess'"
+        updateDB(sqlConn1,IndoorJobControlUpdateQuery)
+        sqlConn1.close()
+       println(s"--------------- Indoor Speck Data Process End: $curEndTime")
+ 
+ 
+      } catch {
+        case ex: Exception => {
+          ex.printStackTrace()
+        }
+      }
+    }
+    
+  def getSqlJdbcConnection(sqlDatabaseConnectionString : String): Connection ={
+    var con:Connection = null 
+    try{
+      Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+      con = DriverManager.getConnection(sqlDatabaseConnectionString)
+    }catch{
+        case e:Exception => { print("Exception while Creating Connection " + e.getMessage)}
+    }
+    con
+  }
+  def updateDB(sqlConn: Connection, updateQuery: String) = {
+    sqlConn.createStatement().executeUpdate(updateQuery)
+  }
+  def updateDFToSqlDB(spark: SparkSession, sqlConnStr: String, localDF: DataFrame, dbProcName: String, tableType : String) = {
+      val records = localDF.collect()
+      val schema = localDF.schema
+      val length = records.length
+      val sqlConn = getSqlJdbcConnection(sqlConnStr)
+      if(length > 0){
+        val tableData = new TableData(localDF.schema,records)
+        val pStmt: SQLServerPreparedStatement = sqlConn.prepareStatement(s"EXECUTE $dbProcName ?").asInstanceOf[SQLServerPreparedStatement]
+        pStmt.setStructured(1,tableType , tableData)
+        pStmt.execute()
+      }
+      sqlConn.close()
+  }
+}

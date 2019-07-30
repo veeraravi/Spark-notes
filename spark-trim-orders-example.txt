@@ -1,0 +1,237 @@
+val df = Seq((" Virat ",18,"RCB"),("Rohit ",45,"MI "),(" DK",67,"KKR ")).toDF("captains","jersey_number","teams")
+
+scala> df.show
+
++--------+-------------+-----+
+|captains|jersey_number|teams|
++--------+-------------+-----+
+|  Virat |           18|  RCB|
+|  Rohit |           45|  MI |
+|      DK|           67| KKR |
++--------+-------------+-----+
+
+scala>val trimmedDF = df.withColumn("captains",trim(df("captains"))).withColumn("teams",trim(df("teams")))
+
+scala> trimmedDF.show
+
++--------+-------------+-----+
+|captains|jersey_number|teams|
++--------+-------------+-----+
+|   Virat|           18|  RCB|
+|   Rohit|           45|   MI|
+|      DK|           67|  KKR|
++--------+-------------+-----+
+
+===============================================================
+You can create a simple function to do it. First a couple of imports:
+
+import org.apache.spark.sql.functions.{trim, length, when}
+import org.apache.spark.sql.Column
+and the definition:
+
+def emptyToNull(c: Column) = when(length(trim(c)) > 0, c)
+Finally a quick test:
+
+val df = Seq(" ", "foo", "", "bar").toDF
+df.withColumn("value", emptyToNull($"value"))
+which should yield following result:
+
++-----+
+|value|
++-----+
+| null|
+|  foo|
+| null|
+|  bar|
++-----+
+If you want to replace empty string with string "NULL you can add otherwise clause:
+
+def emptyToNullString(c: Column) = when(length(trim(c)) > 0, c).otherwise("NULL")
+
+
+1.Get revenue for each day joining orders and order_items
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SQLContext
+
+import com.typesafe.config.ConfigFactory
+
+object DataFrameEx19 {
+case class Orders(
+order_id: Int,
+order_date: String,
+order_customer_id: Int,
+order_status: String)
+
+case class OrderItems(
+order_item_id: Int,
+order_item_order_id: Int,
+order_item_product_id: Int,
+order_item_quantity: Int,
+order_item_subtotal: Float,
+order_item_price: Float
+
+)
+def main(args: Array[String]): Unit = {
+val appConf=ConfigFactory.load()
+val conf = new SparkConf().setAppName(“spark exercise 17”)
+.setMaster(appConf.getConfig(args(2)).getString(“deployment”))
+val sc = new SparkContext(conf)
+val inputPath = args(0)
+val outputPath = args(1)
+val fs = FileSystem.get(sc.hadoopConfiguration)
+val inputPathExists = fs.exists(new Path(inputPath))
+val outputPathExists = fs.exists(new Path(outputPath))
+if (!inputPathExists) {
+println(“Input Path does not exists”)
+return
+}
+
+if (outputPathExists) {
+  fs.delete(new Path(outputPath), true)
+}
+val sqlContext = new SQLContext(sc)
+
+import sqlContext.implicits._
+val ordersDF = sc.textFile(inputPath + "/orders").
+map { x => {val y=x.split(",")
+  Orders(y(0).toInt,y(1),y(2).toInt,y(3))} }.toDF()
+  
+   val ordersItemsDF = sc.textFile(inputPath + "/order_items").
+map { x => {val y=x.split(",")
+  OrderItems(y(0).toInt,y(1).toInt,y(2).toInt,y(3).toInt,y(4).toFloat,y(5).toFloat)} }.toDF()
+ 
+  val ordersFiltered=ordersDF.filter(ordersDF("order_status")==="COMPLETE")
+  val ordersjoin=ordersFiltered.join(ordersItemsDF,ordersFiltered("order_id")=== ordersItemsDF("order_item_order_id"))
+  ordersjoin.groupBy("order_date").sum(("order_item_subtotal")).sort("order_date").rdd.saveAsTextFile(outputPath)
+}
+}
+=================================================================================================
+val ordersDF = sc.textFile("/public/retail_db/orders").
+map(rec => {
+val records = rec.split(",")
+Orders(records(0).toInt, records(1).toString(), records(2).toInt, records(3).toString())
+}).toDF()
+val orderItemsDF = sc.textFile("/public/retail_db/order_items").
+map(rec => {
+val records = rec.split(",")
+OrderItems(
+records(0).toInt,
+records(1).toInt,
+records(2).toInt,
+records(3).toInt,
+records(4).toFloat,
+records(5).toFloat)
+}).toDF()
+val ordersFiltered = ordersDF.
+filter(ordersDF(“order_status”) === “COMPLETE”)
+val orders_orderitem_Join = ordersFiltered.join(orderItemsDF,
+ordersFiltered(“order_id”) === orderItemsDF(“order_item_order_id”))
+
+orders_orderitem_Join.
+  groupBy("order_date").
+  agg(sum("order_item_subtotal")).
+  sort("order_date").
+  rdd.
+  saveAsTextFile("spark_df/")
+
+  code for sql:
+val ordersDF = sc.textFile("/public/retail_db/orders").
+map(rec => {
+val records = rec.split(",")
+Orders(records(0).toInt, records(1).toString(), records(2).toInt, records(3).toString())
+}).toDF()
+ordersDF.registerTempTable(“orders”)
+val orderItemsDF = sc.textFile("/public/retail_db/order_items").
+map(rec => {
+val records = rec.split(",")
+OrderItems(
+records(0).toInt,
+records(1).toInt,
+records(2).toInt,
+records(3).toInt,
+records(4).toFloat,
+records(5).toFloat)
+}).toDF()
+orderItemsDF.registerTempTable(“order_items”)
+val totalRevenueDaily = sqlContext.sql("select o.order_date, sum(oi.order_item_subtotal) " +
+"from orders o join order_items oi " +
+"on o.order_id = oi.order_item_order_id " +
+"where o.order_status = ‘COMPLETE’ " +
+"group by o.order_date " +
+“order by o.order_date”)
+totalRevenueDaily.rdd.saveAsTextFile(“spark_sql/”)
+
+===================================================================
+import com.typesafe.config.ConfigFactory
+
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+
+import org.apache.hadoop.fs._
+import org.apache.spark.sql._
+import org.apache.spark.sql.functions._
+
+object exampleDataFrames {
+case class Orders(order_id:Int, order_date: String, order_customer_id: Int, order_status: String)
+
+def log(msg: String): Unit = {
+println(msg);
+}
+
+case class OrderItems(order_item_id:Int, order_item_order_id: Int,order_item_product_id: Int,order_item_quantity: Int,
+order_item_subtotal: Float,order_item_price: Float)
+
+def main(args:Array[String]){
+val appConf = ConfigFactory.load()
+val conf = new SparkConf().setAppName("Arun Exercise 18").setMaster(appConf.getConfig(args(2)).getString("deployment"))
+val sc = new SparkContext(conf)
+
+//create SQl context
+val sqlContext = new SQLContext(sc)
+sqlContext.setConf("spark.sql.shuffle.partitions", "2")
+import sqlContext.implicits._
+
+val inputPath = args(0)
+val outputPath = args(1)
+
+val fs = FileSystem.get(sc.hadoopConfiguration)
+val inputPathExists = fs.exists(new Path(inputPath))
+val outputPathExists = fs.exists(new Path(outputPath))
+
+if (!inputPathExists) {
+  log("input path doesnot exists")
+  sys.exit(1)
+}
+if (outputPathExists) {
+  fs.delete(new Path(outputPath), true)
+  log("creating new outputpath as it exists")
+}
+
+val ordersDF = sc.textFile(inputPath +"/orders").map(rec=>{
+val a=rec.split(",")
+  Orders(a(0).toInt,a(1).toString(), a(2).toInt, a(3).toString())
+}).toDF()
+
+ val orderItemsDF = sc.textFile(inputPath +"/order_items").map(rec=>{
+   val a= rec.split(",")
+   OrderItems(a(0).toInt,a(1).toInt,a(2).toInt,a(3).toInt,a(4).toFloat,a(5).toFloat)
+ }).toDF()
+
+
+ val ordersFiltered = ordersDF.filter(ordersDF("order_status")==="COMPLETE")
+ val ordersJoin = ordersFiltered.join(orderItemsDF,ordersFiltered("order_id")=== orderItemsDF("order_item_order_id"))
+
+ ordersJoin.groupBy("order_date").agg(sum("order_item_subtotal"))
+  .sort("order_date")
+  .rdd.saveAsTextFile(outputPath)
+}
+}
+=========================================================================
+import org.apache.spark.sql.SQLContext
+val sqlcontext = new org.apache.spark.sql.SQLContext(sc)
+val dataframe_mysql = sqlcontext.read.format("jdbc").option("url", "jdbc:mysql://sn1:3306/test").option("driver", "com.mysql.jdbc.Driver").option("dbtable", "emp").option("user", "root").option("password", "mapr").load()
+dataframe_mysql.show()
+

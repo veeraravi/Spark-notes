@@ -1,0 +1,3 @@
+
+var dataFrameResult = productsDF.filter("productPrice < 100").groupBy(col("productCategory")).agg(max(col("productPrice")).alias("max_price"),countDistinct(col("productID")).alias("tot_products"),round(avg(col("productPrice")),2).alias("avg_price"),min(col("productPrice")).alias("min_price")).orderBy(col("productCategory"));
+scala> dataFrameResult.show();

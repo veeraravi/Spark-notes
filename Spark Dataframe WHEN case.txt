@@ -1,0 +1,370 @@
+SELECT KEY,
+    CASE WHEN tc in ('a','b') THEN 'Y'
+         WHEN tc in ('a') AND amt > 0 THEN 'N'
+         ELSE NULL END REASON,
+FROM dataset1;
+My input DataFrame is as below:
+
+val dataset1 = Seq((66, "a", "4"), (67, "a", "0"), (70, "b", "4"), (71, "d", "4")).toDF("KEY", "tc", "amt")
+
+dataset1.show()
+
+dataset1.withColumn("REASON", when(col("tc").isin("a", "b"), "Y")
+  .otherwise(when(col("tc").equalTo("a") && col("amt").geq(0), "N")
+    .otherwise(null))).show()
++---+---+---+------+
+|KEY| tc|amt|REASON|
++---+---+---+------+
+| 66|  a|  4|     Y|
+| 67|  a|  0|     Y|
+| 70|  b|  4|     Y|
+| 71|  d|  4|  null|
++---+---+---+------+
+Readability of the above logic with "otherwise" statement is little messy if the nested when statements goes further.
+
+Is there any better way of implementing nested case when statements in Spark DataFrames?
+
+There is no nesting here, therefore there is no need for otherwise. All you need is chained when:
+
+import spark.implicits._
+
+when($"tc" isin ("a", "b"), "Y")
+.when($"tc" === "a" && $"amt" >= 0, "N")
+ELSE NULL is implicit so you can omit it completely.
+
+Pattern you use, is more more applicable for folding over a data structure:
+
+val cases = Seq(
+  ($"tc" isin ("a", "b"), "Y"),
+  ($"tc" === "a" && $"amt" >= 0, "N")
+)
+where when - otherwise naturally follows recursion pattern and null provides the base case.
+
+cases.foldLeft(lit(null)) {
+  case (acc, (expr, value)) => when(expr, value).otherwise(acc)
+}
+Please note, that it is impossible to reach "N" outcome, with this chain of conditions. If tc is equal to "a" it will be captured by the first clause. If it is not, it will fail to satisfy both predicates and default to NULL. You should rather:
+
+when($"tc" === "a" && $"amt" >= 0, "N")
+ .when($"tc" isin ("a", "b"), "Y")
+ 
+ 
+ =======================================================================
+ Spark Dataframe WHEN case:
+ n SQL, if we have to check multiple conditions for any column value then we use case statament. In Spark SQL dataframes also we can replicate same functionality by using WHEN clause multiple times, once for each conditional check. No requirement to add CASE keyword though. So let’s see an example to see how to check for multiple conditions and replicate SQL CASE statement in Spark SQL.
+
+scala> df_pres.select($"pres_name",$"pres_dob",$"pres_bs",
+ when($"pres_bs"==="Virginia","VA").when($"pres_bs"==="Massachusetts","MA")
+.when($"pres_bs"==="Ohio","OH").otherwise("Others").alias("state_abbr")).show()
++--------------------+----------+--------------------+----------+
+|           pres_name|  pres_dob|             pres_bs|state_abbr|
++--------------------+----------+--------------------+----------+
+|   George Washington|1732-02-22|            Virginia|        VA|
+|          John Adams|1735-10-30|       Massachusetts|        MA|
+|    Thomas Jefferson|1743-04-13|            Virginia|        VA|
+|       James Madison|1751-03-16|            Virginia|        VA|
+|        James Monroe|1758-04-28|            Virginia|        VA|
+|   John Quincy Adams|1767-07-11|       Massachusetts|        MA|
+|      Andrew Jackson|1767-03-15|South/North Carolina|    Others|
+|    Martin Van Buren|1782-12-05|            New York|    Others|
+|William Henry Har...|1773-02-09|            Virginia|        VA|
+|          John Tyler|1790-03-29|            Virginia|        VA|
+|       James K. Polk|1795-11-02|      North Carolina|    Others|
+|      Zachary Taylor|1784-11-24|            Virginia|        VA|
+|    Millard Fillmore|1800-01-07|            New York|    Others|
+|     Franklin Pierce|1804-11-23|       New Hampshire|    Others|
+|      James Buchanan|1791-04-23|        Pennsylvania|    Others|
+|     Abraham Lincoln|1809-02-12|            Kentucky|    Others|
+|      Andrew Johnson|1808-12-29|      North Carolina|    Others|
+|    Ulysses S. Grant|1822-04-27|                Ohio|        OH|
+| Rutherford B. Hayes|1822-10-04|                Ohio|        OH|
+|   James A. Garfield|1831-11-19|                Ohio|        OH|
++--------------------+----------+--------------------+----------+
+only showing top 20 rows
+
+Spark Dataframe add multiple columns with value:
+
+You may need to add new columns in the existing SPARK dataframe as per the requirement. This new column can be initialized with a default value or you can assign some dynamic value to it depending on some logical conditions. Let’s see an example below to add 2 new columns with logical value and 1 column with default value.
+
+scala> df_pres.select($"pres_name",$"pres_dob",$"pres_bs").show(false)
++----------------------+----------+--------------+
+|pres_name             |pres_dob  |pres_bs       |
++----------------------+----------+--------------+
+|George Washington     |1732-02-22|Virginia      |
+|John Adams            |1735-10-30|Massachusetts |
+|Thomas Jefferson      |1743-04-13|Virginia      |
+|James Madison         |1751-03-16|Virginia      |
+|James Monroe          |1758-04-28|Virginia      |
+|John Quincy Adams     |1767-07-11|Massachusetts |
+|Andrew Jackson        |1767-03-15|North Carolina|
+|Martin Van Buren      |1782-12-05|New York      |
+|William Henry Harrison|1773-02-09|Virginia      |
+|John Tyler            |1790-03-29|Virginia      |
+|James K. Polk         |1795-11-02|North Carolina|
+|Zachary Taylor        |1784-11-24|Virginia      |
+|Millard Fillmore      |1800-01-07|New York      |
+|Franklin Pierce       |1804-11-23|New Hampshire |
+|James Buchanan        |1791-04-23|Pennsylvania  |
+|Abraham Lincoln       |1809-02-12|Kentucky      |
+|Andrew Johnson        |1808-12-29|North Carolina|
+|Ulysses S. Grant      |1822-04-27|Ohio          |
+|Rutherford B. Hayes   |1822-10-04|Ohio          |
+|James A. Garfield     |1831-11-19|Ohio          |
++----------------------+----------+--------------+
+only showing top 20 rows
+Let’s add 2 new columns to it. One for State Abbreviation and other for Century to which President was born. Also we will add 1 new column with default value using “lit” function.
+
+scala> df_pres.select($"pres_name",$"pres_dob",$"pres_bs",when($"pres_bs"==="Virginia","VA").when($"pres_bs"==="Massachusetts","MA").when($"pres_bs"==="Ohio","OH").otherwise("Others").alias("state_abbr"), when($"pres_dob".between("1701-01-01","1800-12-31"),"18th Century").when($"pres_dob".between("1801-01-01","1900-12-31"),"19th Century").when($"pres_dob".between("1901-01-01","2000-12-31"),"20th Century").alias("Century"),lit("-1").alias("C3")).show(50)
++--------------------+----------+--------------+----------+------------+---+
+|           pres_name|  pres_dob|       pres_bs|state_abbr|     Century| C3|
++--------------------+----------+--------------+----------+------------+---+
+|   George Washington|1732-02-22|      Virginia|        VA|18th Century| -1|
+|          John Adams|1735-10-30| Massachusetts|        MA|18th Century| -1|
+|    Thomas Jefferson|1743-04-13|      Virginia|        VA|18th Century| -1|
+|       James Madison|1751-03-16|      Virginia|        VA|18th Century| -1|
+|        James Monroe|1758-04-28|      Virginia|        VA|18th Century| -1|
+|   John Quincy Adams|1767-07-11| Massachusetts|        MA|18th Century| -1|
+|      Andrew Jackson|1767-03-15|North Carolina|    Others|18th Century| -1|
+|    Martin Van Buren|1782-12-05|      New York|    Others|18th Century| -1|
+|William Henry Har...|1773-02-09|      Virginia|        VA|18th Century| -1|
+|          John Tyler|1790-03-29|      Virginia|        VA|18th Century| -1|
+|       James K. Polk|1795-11-02|North Carolina|    Others|18th Century| -1|
+|      Zachary Taylor|1784-11-24|      Virginia|        VA|18th Century| -1|
+|    Millard Fillmore|1800-01-07|      New York|    Others|18th Century| -1|
+|     Franklin Pierce|1804-11-23| New Hampshire|    Others|19th Century| -1|
+|      James Buchanan|1791-04-23|  Pennsylvania|    Others|18th Century| -1|
+|     Abraham Lincoln|1809-02-12|      Kentucky|    Others|19th Century| -1|
+|      Andrew Johnson|1808-12-29|North Carolina|    Others|19th Century| -1|
+|    Ulysses S. Grant|1822-04-27|          Ohio|        OH|19th Century| -1|
+| Rutherford B. Hayes|1822-10-04|          Ohio|        OH|19th Century| -1|
+|   James A. Garfield|1831-11-19|          Ohio|        OH|19th Century| -1|
+|   Chester A. Arthur|1829-10-05|       Vermont|    Others|19th Century| -1|
+|    Grover Cleveland|1837-03-18|    New Jersey|    Others|19th Century| -1|
+|   Benjamin Harrison|1833-08-20|          Ohio|        OH|19th Century| -1|
+|    Grover Cleveland|1837-03-18|    New Jersey|    Others|19th Century| -1|
+|    William McKinley|1843-01-29|          Ohio|        OH|19th Century| -1|
+|  Theodore Roosevelt|1858-10-27|      New York|    Others|19th Century| -1|
+| William Howard Taft|1857-09-15|          Ohio|        OH|19th Century| -1|
+|      Woodrow Wilson|1856-12-28|      Virginia|        VA|19th Century| -1|
+|   Warren G. Harding|1865-11-02|          Ohio|        OH|19th Century| -1|
+|     Calvin Coolidge|1872-07-04|       Vermont|    Others|19th Century| -1|
+|      Herbert Hoover|1874-08-10|          Iowa|    Others|19th Century| -1|
+|Franklin D. Roose...|1882-01-30|      New York|    Others|19th Century| -1|
+|     Harry S. Truman|1884-05-08|      Missouri|    Others|19th Century| -1|
+|Dwight D. Eisenhower|1890-10-14|         Texas|    Others|19th Century| -1|
+|     John F. Kennedy|1917-05-29| Massachusetts|        MA|20th Century| -1|
+|   Lyndon B. Johnson|1908-08-27|         Texas|    Others|20th Century| -1|
+|    Richard M. Nixon|1913-01-09|    California|    Others|20th Century| -1|
+|      Gerald R. Ford|1913-07-14|      Nebraska|    Others|20th Century| -1|
+|        Jimmy Carter|1924-10-01|       Georgia|    Others|20th Century| -1|
+|       Ronald Reagan|1911-02-06|      Illinois|    Others|20th Century| -1|
+|   George H. W. Bush|1924-06-12| Massachusetts|        MA|20th Century| -1|
+|        Bill Clinton|1946-08-19|      Arkansas|    Others|20th Century| -1|
+|      George W. Bush|1946-07-06|   Connecticut|    Others|20th Century| -1|
+|        Barack Obama|1961-08-04|        Hawaii|    Others|20th Century| -1|
+|        Donald Trump|1946-06-14|      New York|    Others|20th Century| -1|
++--------------------+----------+--------------+----------+------------+---+
+We can also use withColumn method to add new columns in spark dataframe.
+
+scala> df_pres.select($"pres_name",$"pres_dob",$"pres_bs").withColumn("state_abbr",when($"pres_bs"==="Virginia","VA").when($"pres_bs"==="Massachusetts","MA").when($"pres_bs"==="Ohio","OH").otherwise("Others")).show(false)
++----------------------+----------+--------------+----------+
+|pres_name             |pres_dob  |pres_bs       |state_abbr|
++----------------------+----------+--------------+----------+
+|George Washington     |1732-02-22|Virginia      |VA        |
+|John Adams            |1735-10-30|Massachusetts |MA        |
+|Thomas Jefferson      |1743-04-13|Virginia      |VA        |
+|James Madison         |1751-03-16|Virginia      |VA        |
+|James Monroe          |1758-04-28|Virginia      |VA        |
+|John Quincy Adams     |1767-07-11|Massachusetts |MA        |
+|Andrew Jackson        |1767-03-15|North Carolina|Others    |
+|Martin Van Buren      |1782-12-05|New York      |Others    |
+|William Henry Harrison|1773-02-09|Virginia      |VA        |
+|John Tyler            |1790-03-29|Virginia      |VA        |
+|James K. Polk         |1795-11-02|North Carolina|Others    |
+|Zachary Taylor        |1784-11-24|Virginia      |VA        |
+|Millard Fillmore      |1800-01-07|New York      |Others    |
+|Franklin Pierce       |1804-11-23|New Hampshire |Others    |
+|James Buchanan        |1791-04-23|Pennsylvania  |Others    |
+|Abraham Lincoln       |1809-02-12|Kentucky      |Others    |
+|Andrew Johnson        |1808-12-29|North Carolina|Others    |
+|Ulysses S. Grant      |1822-04-27|Ohio          |OH        |
+|Rutherford B. Hayes   |1822-10-04|Ohio          |OH        |
+|James A. Garfield     |1831-11-19|Ohio          |OH        |
++----------------------+----------+--------------+----------+
+only showing top 20 rows
+In this post , we saw how to add new columns to spark dataframe. This new column can be with default value or some other values.
+
+Spark Dataframe orderBy Sort:
+
+SORT is used to order resultset on the basis of values for any selected column. The syntax is to use sort function with column name inside it. We can also specify asending or descending order for sorting, default is ascending. In our dataframe, if we want to order the resultset on the basis of the state in which President was born then we will use below query:
+
+scala> df_pres.select($"pres_id",$"pres_dob",$"pres_bs").sort($"pres_bs".asc).show()
++-------+----------+-------------+
+|pres_id|  pres_dob|      pres_bs|
++-------+----------+-------------+
+|     42|1946-08-19|     Arkansas|
+|     37|1913-01-09|   California|
+|     43|1946-07-06|  Connecticut|
+|     39|1924-10-01|      Georgia|
+|     44|1961-08-04|       Hawaii|
+|     40|1911-02-06|     Illinois|
+|     31|1874-08-10|         Iowa|
+|     16|1809-02-12|     Kentucky|
+|     41|1924-06-12|Massachusetts|
+|      6|1767-07-11|Massachusetts|
+|      2|1735-10-30|Massachusetts|
+|     35|1917-05-29|Massachusetts|
+|     33|1884-05-08|     Missouri|
+|     38|1913-07-14|     Nebraska|
+|     14|1804-11-23|New Hampshire|
+|     22|1837-03-18|   New Jersey|
+|     24|1837-03-18|   New Jersey|
+|     32|1882-01-30|     New York|
+|     26|1858-10-27|     New York|
+|     13|1800-01-07|     New York|
++-------+----------+-------------+
+only showing top 20 rows
+If we want to SORT in descending order then we will use below query:
+
+scala> df_pres.select($"pres_id",$"pres_dob",$"pres_bs").sort($"pres_bs".desc).show()
++-------+----------+--------------------+
+|pres_id|  pres_dob|             pres_bs|
++-------+----------+--------------------+
+|      1|1732-02-22|            Virginia|
+|     10|1790-03-29|            Virginia|
+|      4|1751-03-16|            Virginia|
+|     12|1784-11-24|            Virginia|
+|     28|1856-12-28|            Virginia|
+|      3|1743-04-13|            Virginia|
+|      5|1758-04-28|            Virginia|
+|      9|1773-02-09|            Virginia|
+|     21|1829-10-05|             Vermont|
+|     30|1872-07-04|             Vermont|
+|     36|1908-08-27|               Texas|
+|     34|1890-10-14|               Texas|
+|      7|1767-03-15|South/North Carolina|
+|     15|1791-04-23|        Pennsylvania|
+|     18|1822-04-27|                Ohio|
+|     19|1822-10-04|                Ohio|
+|     20|1831-11-19|                Ohio|
+|     27|1857-09-15|                Ohio|
+|     23|1833-08-20|                Ohio|
+|     29|1865-11-02|                Ohio|
++-------+----------+--------------------+
+only showing top 20 rows
+If you want to specify SORTing on the basis of multiple columns then use below query:
+
+scala> df_pres.select($"pres_id",$"pres_dob",$"pres_bs").sort($"pres_bs".desc,$"pres_dob".asc).show()
++-------+----------+--------------------+
+|pres_id|  pres_dob|             pres_bs|
++-------+----------+--------------------+
+|      1|1732-02-22|            Virginia|
+|      3|1743-04-13|            Virginia|
+|      4|1751-03-16|            Virginia|
+|      5|1758-04-28|            Virginia|
+|      9|1773-02-09|            Virginia|
+|     12|1784-11-24|            Virginia|
+|     10|1790-03-29|            Virginia|
+|     28|1856-12-28|            Virginia|
+|     21|1829-10-05|             Vermont|
+|     30|1872-07-04|             Vermont|
+|     34|1890-10-14|               Texas|
+|     36|1908-08-27|               Texas|
+|      7|1767-03-15|South/North Carolina|
+|     15|1791-04-23|        Pennsylvania|
+|     18|1822-04-27|                Ohio|
+|     19|1822-10-04|                Ohio|
+|     20|1831-11-19|                Ohio|
+|     23|1833-08-20|                Ohio|
+|     25|1843-01-29|                Ohio|
+|     27|1857-09-15|                Ohio|
++-------+----------+--------------------+
+only showing top 20 rows
+You can also sort the result set on the basis of derived columns. For this example we will refer to previous post and will apply sort to the derived column.
+
+scala>df_pres.select($"pres_name",$"pres_dob",$"pres_bs",when($"pres_bs"==="Virginia","VA").when($"pres_bs"==="Massachusetts","MA").when($"pres_bs"==="Ohio","OH").otherwise("Others").alias("state_abbr")).sort($"state_abbr".desc).show()
++--------------------+----------+--------------------+----------+
+|           pres_name|  pres_dob|             pres_bs|state_abbr|
++--------------------+----------+--------------------+----------+
+|   George Washington|1732-02-22|            Virginia|        VA|
+|          John Tyler|1790-03-29|            Virginia|        VA|
+|       James Madison|1751-03-16|            Virginia|        VA|
+|      Zachary Taylor|1784-11-24|            Virginia|        VA|
+|      Woodrow Wilson|1856-12-28|            Virginia|        VA|
+|    Thomas Jefferson|1743-04-13|            Virginia|        VA|
+|        James Monroe|1758-04-28|            Virginia|        VA|
+|William Henry Har...|1773-02-09|            Virginia|        VA|
+|  Theodore Roosevelt|1858-10-27|            New York|    Others|
+|    Grover Cleveland|1837-03-18|          New Jersey|    Others|
+|     Calvin Coolidge|1872-07-04|             Vermont|    Others|
+|Franklin D. Roose...|1882-01-30|            New York|    Others|
+|    Martin Van Buren|1782-12-05|            New York|    Others|
+|      Andrew Jackson|1767-03-15|South/North Carolina|    Others|
+|      Herbert Hoover|1874-08-10|                Iowa|    Others|
+|     Abraham Lincoln|1809-02-12|            Kentucky|    Others|
+|     Harry S. Truman|1884-05-08|            Missouri|    Others|
+|Dwight D. Eisenhower|1890-10-14|               Texas|    Others|
+|     Franklin Pierce|1804-11-23|       New Hampshire|    Others|
+|   Chester A. Arthur|1829-10-05|             Vermont|    Others|
++--------------------+----------+--------------------+----------+
+only showing top 20 rows
+You can also apply sorting to the expression in SORT function. Let’s see the example below:
+
+scala>df_pres.select($"pres_name",$"pres_dob",$"pres_bs").sort(when($"pres_bs"==="Virginia","VA").when($"pres_bs"==="Massachusetts","MA").when($"pres_bs"==="Ohio","OH").otherwise("Others").desc).show()
++--------------------+----------+--------------------+
+|           pres_name|  pres_dob|             pres_bs|
++--------------------+----------+--------------------+
+|   George Washington|1732-02-22|            Virginia|
+|          John Tyler|1790-03-29|            Virginia|
+|       James Madison|1751-03-16|            Virginia|
+|      Zachary Taylor|1784-11-24|            Virginia|
+|      Woodrow Wilson|1856-12-28|            Virginia|
+|    Thomas Jefferson|1743-04-13|            Virginia|
+|        James Monroe|1758-04-28|            Virginia|
+|William Henry Har...|1773-02-09|            Virginia|
+|  Theodore Roosevelt|1858-10-27|            New York|
+|    Grover Cleveland|1837-03-18|          New Jersey|
+|     Calvin Coolidge|1872-07-04|             Vermont|
+|Franklin D. Roose...|1882-01-30|            New York|
+|    Martin Van Buren|1782-12-05|            New York|
+|      Andrew Jackson|1767-03-15|South/North Carolina|
+|      Herbert Hoover|1874-08-10|                Iowa|
+|     Abraham Lincoln|1809-02-12|            Kentucky|
+|     Harry S. Truman|1884-05-08|            Missouri|
+|Dwight D. Eisenhower|1890-10-14|               Texas|
+|     Franklin Pierce|1804-11-23|       New Hampshire|
+|   Chester A. Arthur|1829-10-05|             Vermont|
++--------------------+----------+--------------------+
+only showing top 20 rows
+In the above example, we have created an expression using WHEN and then applied sorting to it. In the resultset you can see that all states starting with “V” are not at top and the sorting is done on the basis of expression only.
+In place of “sort” you can also use “orderBy” function too.
+
+scala> df_pres.select($"pres_id",$"pres_dob",$"pres_bs").orderBy($"pres_bs".asc).show()
++-------+----------+-------------+
+|pres_id|  pres_dob|      pres_bs|
++-------+----------+-------------+
+|     42|1946-08-19|     Arkansas|
+|     37|1913-01-09|   California|
+|     43|1946-07-06|  Connecticut|
+|     39|1924-10-01|      Georgia|
+|     44|1961-08-04|       Hawaii|
+|     40|1911-02-06|     Illinois|
+|     31|1874-08-10|         Iowa|
+|     16|1809-02-12|     Kentucky|
+|     41|1924-06-12|Massachusetts|
+|      6|1767-07-11|Massachusetts|
+|      2|1735-10-30|Massachusetts|
+|     35|1917-05-29|Massachusetts|
+|     33|1884-05-08|     Missouri|
+|     38|1913-07-14|     Nebraska|
+|     14|1804-11-23|New Hampshire|
+|     22|1837-03-18|   New Jersey|
+|     24|1837-03-18|   New Jersey|
+|     32|1882-01-30|     New York|
+|     26|1858-10-27|     New York|
+|     13|1800-01-07|     New York|
++-------+----------+-------------+
+only showing top 20 rows
+
+SPARK Dataframe Alias AS:
+

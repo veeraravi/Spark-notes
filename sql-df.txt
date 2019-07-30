@@ -1,0 +1,150 @@
+
+set initial.processing.date=2018-07-04;
+set extraction.ardw.year.month=201806;
+set extraction.ardw.feedkeys=2018152005,2018152006,2018152007,2018152008,2018153000,2018153001,2018153002,2018153003,2018153004,2018154000,2018154001,2018154002;
+set extraction.gdr.feedkeys=2018156007,2018157000,2018157001,2018157002,2018157003,2018157004,2018157005,2018157006,2018157007,2018158000,2018158001,2018158002,2018158003,2018158004;
+use pmdlg;
+
+SELECT
+bigint(trim(t1.trans_id)) as pmd_ar_trans_id,
+trim(t1.acqr_refer_no) as pmd_ar_arn,
+t1.cm11 pmd_ar_cm_11,
+concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) pmd_ar_cm_13,
+t1.cm15 AS pmd_ar_cm_15,
+'0' as pmd_ar_clnt_orgn_id,
+trim(t8.iso_2_pos_cd) as pmd_ar_ctry_id,
+trim(t1.prod_ia_cd) as pmd_ar_prod_id,
+trim(nvl(t1.post_dt,'')) as pmd_ar_bus_proc_dt,
+trim(nvl(t1.trans_dt,'')) as pmd_ar_trans_dt,
+case when trim(t1.trans_cd) IN  ('0410C','0410P') then t1.trans_am*-1 else  t1.trans_am end pmd_ar_bill_am,
+trim(t6.iso_alpha_cd) as pmd_ar_bill_am_curr_cd,
+t1.subm_trans_am as pmd_ar_subm_trans_am,
+trim(t7.iso_alpha_cd) as pmd_ar_subm_trans_am_curr_cd,
+0 as pmd_ar_bill_usd_am,
+trim(t1.se10) as pmd_ar_se_acct_no,
+trim(t2.se_sic_cd) as pmd_ar_se_sic_cd,
+trim(t2.se_mer_ctgy_cd) as pmd_ar_se_mcc_cd,
+trim(t1.trans_cd) as pmd_ar_trans_type_cd,
+'' as pmd_ar_trans_subtype_cd,
+trim(t1.btch_no) as pmd_ar_btch_no,
+trim(nvl(t1.bill_thru_dt,'')) as pmd_ar_bill_thru_dt,
+trim(t1.ardw_sor_org) as pmd_ar_mkt_cd,
+COALESCE(t3.gaicodeacctstatd,t4.acc_int_status,t10.sta_cd1,t11.sta_cd) pmd_ar_acct_sta_cd,
+trim(nvl(COALESCE(t3.gaidatelaststatchgd,t4.acc_date_last_stat_chg),'')) pmd_ar_acct_sta_dt,
+trim(nvl(COALESCE(t3.gaidateplstexprd,t5.crd_amed_date_expire,t10.plstc_expr_dt,t11.card_expr_mo_yr),'')) pmd_ar_plstc_expr_dt,
+trim(nvl(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr),'')) pmd_ar_cm_since_dt,
+trim(nvl(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr),'')) pmd_ar_card_iss_dt,
+trim(t1.device_pan) as pmd_cons_ar_dpan,
+0 as pmd_opp_id_se,
+0 as pmd_opp_id_corp,
+trim(t1.logo_grp) as pmd_ar_logo_grp,
+trim(t1.plan_grp) as pmd_ar_plan_grp,
+trim(t1.flm_seq_no) as pmd_ar_flm_sq_no,
+'' as pmd_cm_chan,
+trim(t1.config_id) as pmd_ar_config_id,
+case when trim(t1.srce_sys)='TRIUMPH' then 'CONSTRI' 
+     when trim(t1.srce_sys)='GLOBESTAR' then 'CONSGSTAR' 
+     when trim(t1.srce_sys)='MNS' then 'CONSMNS'  
+     when trim(t1.srce_sys)='APAR' then 'CONSAPAR' else  'CONSUNK' end pmd_ar_sor,
+trim(t1.list_idx) as pmd_ar_list_idx,
+'${hiveconf:initial.processing.date}' AS pmd_ar_init_proc_dt,
+'' as pmd_ar_trans_cd_cat_cd,
+'' as pmd_ar_trans_seq_no,
+'' as pmd_ar_btch_sub_cd,
+'' as pmd_ar_db_cr_cd,
+'' as pmd_ar_fin_ctgy_cd,
+'' as pmd_ar_srce_trans_cd,
+'' as pmd_ar_srce_trans_type_cd,
+trim(t9.iso_mer_ctgy_cd) as pmd_seller_se_mcc,
+'' as pmd_ar_srce_lgc_modl_cd,
+'' as pmd_ar_trans_plan_type_cd,
+'' as pmd_ar_base_acct_id 
+FROM cstonedb3.ardw_trans_unbilled_keys t1
+LEFT OUTER JOIN cstonedb3.gms_merchant_char t2      ON trim(t1.se10) = trim(t2.se10)
+LEFT OUTER JOIN cstonedb3.triumph_demographics t3   ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) = t3.CM13
+LEFT OUTER JOIN cstonedb3.gstar_account_details  t4 ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) = t4.CM13
+LEFT OUTER JOIN cstonedb3.gstar_card_details t5     ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) = t5.CM13
+LEFT OUTER JOIN crt_currency  t6                    ON trim(t6.iso_no_cd)=trim(t1.bill_curr_cd)
+LEFT OUTER JOIN crt_currency  t7                    ON trim(t7.iso_no_cd)=trim(t1.subm_curr_cd)
+LEFT OUTER JOIN crt_country t8                      ON trim(t8.ctry_id)=trim(t1.iss_ctry_cd)
+LEFT OUTER JOIN cstonedb3.gdr_se_characteristics t9 ON trim(t1.se10)=trim(t9.se_no)
+LEFT OUTER JOIN cstonedb3.mns_demographics_ar t10   ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2))=t10.CM13
+LEFT OUTER JOIN cstonedb3.apa_ar_demographic t11    ON concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2))=t11.CM13
+WHERE trim(t1.srce_sys) in ('TRIUMPH','GLOBESTAR','MNS','APAR') AND t1.cstone_feed_key IN (${hiveconf:extraction.ardw.feedkeys})
+AND upper(trim(NVL(t1.spnd_nonspnd_in,""))) <> "NS"
+AND bus_yr_mo IN (${hiveconf:extraction.ardw.year.month})
+
+UNION ALL
+
+select
+CASE WHEN trim(t12.ar_sor)='TSYS'  then  bigint(trim(t1.roc_id))  else bigint(trim(t1.trans_id)) end pmd_ar_trans_id,
+trim(t1.src_ref_no) as pmd_ar_arn,
+substr(t3.card_account_number,1,11) pmd_ar_cm_11,
+concat(substr(t3.card_account_number,1,11),substr(t3.card_account_number,13,2)) pmd_ar_cm_13,
+t3.card_account_number AS pmd_ar_cm_15,
+t1.clnt_orgn_id as pmd_ar_clnt_orgn_id,
+trim(t8.iso_2_pos_cd) as pmd_ar_ctry_id,
+trim(t1.prod_id) as pmd_ar_prod_id,
+trim(nvl(t1.bus_proc_dt    ,'')) as pmd_ar_bus_proc_dt,
+trim(nvl(t1.trans_dt,'')) as pmd_ar_trans_dt,
+t1.bill_dcml_am as pmd_ar_bill_am,
+trim(t1.bill_curr_cd) as pmd_ar_bill_am_curr_cd,
+t1.subm_curr_dcml_am as pmd_ar_subm_trans_am,
+trim(t1.subm_curr_cd) as pmd_ar_subm_trans_am_curr_cd,
+t1.bill_usd_am as pmd_ar_bill_usd_am,
+trim(t1.se_acct_no) as pmd_ar_se_acct_no,
+trim(t1.sic_cd) as pmd_ar_se_sic_cd,
+trim(t5.se_mer_ctgy_cd) as pmd_ar_se_mcc_cd,
+trim(t1.trans_type_cd) as pmd_ar_trans_type_cd,
+trim(t2.intr_trans_sub_type_cd) as pmd_ar_trans_subtype_cd,
+trim(t1.btch_no) as pmd_ar_btch_no,
+trim(nvl(t6.bill_dt,'')) as pmd_ar_bill_thru_dt,
+trim(t1.mkt_cd) as pmd_ar_mkt_cd,
+trim(t3.acct_sta_cd) pmd_ar_acct_sta_cd,
+trim(t3.acct_sta_dt) as pmd_ar_acct_sta_dt,
+trim(t3.plstc_expr_dt) as pmd_ar_plstc_expr_dt, 
+trim(t3.mbr_since_dt) as pmd_ar_cm_since_dt,
+trim(t3.card_iss_dt) as pmd_ar_card_iss_dt,
+trim(t2.vpay_proxy_acct_no) as pmd_cons_ar_dpan,
+0 as pmd_opp_id_se,
+0 as pmd_opp_id_corp,
+'' as pmd_ar_logo_grp,
+'' as pmd_ar_plan_grp,
+'' as pmd_ar_flm_sq_no,
+'' as pmd_cm_chan,
+'' as pmd_ar_config_id,
+case when trim(t12.ar_sor)='GLOBESTAR' then 'CORPGSTAR' when trim(t12.ar_sor)='TSYS' then 'CORPTSYS' when trim(t12.ar_sor)='CARS' then 'CORPCARS' when trim(t12.ar_sor)='APA_AR' then 'CORPAPAR' when trim(t12.ar_sor)='CARE' then 'CORPCARE'  when trim(t12.ar_sor)='MNS' then 'CORPMNS'  else  'CORPUNK' end pmd_ar_sor,
+'' as pmd_ar_list_idx,
+'${hiveconf:initial.processing.date}' AS pmd_ar_init_proc_dt,
+case  when trim(t12.ar_sor)='CARS'  and t2.intr_db_cr_cd IS NOT NULL then trim(nvl(COALESCE(CONCAT('CA',t1.btch_no,t1.btch_sub_cd,t2.intr_db_cr_cd,t2.intr_trans_type_cd,t2.intr_trans_sub_type_cd,t2.intr_fin_ctgy_cd,t1.trans_type_cd)),'CA'))
+when trim(t12.ar_sor)='GLOBESTAR'  and t2.intr_db_cr_cd IS NOT NULL then trim(nvl(COALESCE(CONCAT(t2.trans_srce_type_cd,t1.srce_trans_cd,t2.intr_db_cr_cd,t2.intr_trans_type_cd,t2.intr_trans_sub_type_cd,t2.intr_fin_ctgy_cd,t1.trans_type_cd)),'G*'))
+when trim(t12.ar_sor)='TSYS'  and  t2.intr_db_cr_cd IS NOT NULL then trim(nvl(COALESCE(CONCAT(t2.trans_srce_type_cd,t1.srce_trans_cd,t2.intr_db_cr_cd,t2.intr_trans_type_cd,t2.intr_trans_sub_type_cd,t2.intr_fin_ctgy_cd,t1.trans_type_cd)),'TSYS'))
+when trim(t12.ar_sor) IN ('APA_AR','CARE','MNS') then trim(nvl(COALESCE(CONCAT(t12.ar_sor,t1.trans_type_cd)),t12.ar_sor))
+when trim(t12.ar_sor)='TSYS'  and  trim(t1.prod_id) IN ('GWR','JA6') and trim(t3.acct_type_cd)='000008'  then trim(nvl(COALESCE(CONCAT('TSYSLEG',t1.trans_type_cd)),t12.ar_sor)) end  pmd_ar_trans_cd_cat_cd,
+t1.trans_seq_no as pmd_ar_trans_seq_no,
+t1.btch_sub_cd as pmd_ar_btch_sub_cd,
+case  when trim(t2.intr_db_cr_cd)  IN ('001','003') then 'DR'  when trim(t2.intr_db_cr_cd)  IN ('002','004') then 'CR' end pmd_ar_db_cr_cd,
+t2.intr_fin_ctgy_cd as pmd_ar_fin_ctgy_cd,
+t1.srce_trans_cd as pmd_ar_srce_trans_cd,
+t2.trans_srce_type_cd as pmd_ar_srce_trans_type_cd,
+trim(t11.iso_mer_ctgy_cd) as pmd_ar_seller_se_mcc,
+trim(t1.srce_lgc_modl_cd) as pmd_ar_srce_lgc_modl_cd,
+trim(t2.trans_plan_type_cd) as pmd_ar_trans_plan_type_cd,
+trim(t1.base_acct_id) as pmd_ar_base_acct_id
+from cstonedb3.gdr_corp_trans_dtl_unbilled t1
+LEFT OUTER JOIN cstonedb3.gdr_corp_trans_add_dtl t2  ON (t1.clnt_orgn_id=t2.clnt_orgn_id AND t1.bus_proc_dt=t2.bus_proc_dt
+                           AND t1.btch_no=t2.btch_no AND t1.trans_seq_no=t2.trans_seq_no AND t1.base_acct_id=t2.base_acct_id)
+LEFT OUTER JOIN cstonedb3.gdr_card_acct t3           ON t1.base_acct_id=t3.base_acct_id AND t1.basic_supp_no=t3.basic_supp_no
+LEFT OUTER JOIN psu_snapshot t4                      ON substr(t3.card_account_number,1,6)=t4.trim_inst_id
+LEFT OUTER JOIN cstonedb3.gms_merchant_char t5       ON trim(t1.se_acct_no)=trim(t5.se10)
+LEFT OUTER JOIN cstonedb3.gdr_bill_cycle t6          ON t1.bill_cycle_id=t6.bill_cycle_id
+LEFT OUTER JOIN crt_country t8                       ON trim(t8.ctry_id)=trim(t4.ctry_id)
+LEFT OUTER JOIN cstonedb3.gdr_corp_product t9        ON trim(t9.prod_id)=trim(t3.prod_id)
+LEFT OUTER JOIN cstonedb3.gdr_corp_product_ext t10   ON trim(t9.prod_id)=trim(t10.prod_id)
+LEFT OUTER JOIN cstonedb3.gdr_se_characteristics t11 ON  trim(t1.se_acct_no)=trim(t11.se_no)
+LEFT OUTER JOIN corp_prod_id_mapping t12             ON trim(t1.prod_id)=trim(t12.prod_id)
+WHERE trim(t10.prtr_type_cd)!='002'
+AND t1.gcp_entitlement NOT LIKE '%REX%' 
+AND t1.clnt_orgn_id NOT LIKE '%RX%' 
+AND trim(t1.opt_cd)='I'
+AND t1.cstone_feed_key IN   (${hiveconf:extraction.gdr.feedkeys});

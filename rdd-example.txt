@@ -1,0 +1,73 @@
+val data = List(List(1,2,3,4,5,6,7,8,9,10),List(2,4,6,8,10),List(1,3,5,7,9,11),List(5,10,15,20,25,30,35))
+val rdd = sc.parallelize(data,4)
+rdd.collect
+res3: Array[List[Int]] = Array(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), List(2, 4, 6, 8, 10), List(1, 3, 5, 7, 9, 11), List(5, 10, 15, 20, 25, 30, 35))
+
+rdd.map(ele => ele*10)
+
+rdd.map(ele => ele.map(l => l*10)).collect
+
+
+rdd:
+List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+val names = List("veera","venkat","nani","rama","nikitha","geethika","meghana","manoj","praveen","ravi","veera","venkat","nani","rama","nikitha","geethika","geethika","meghana","manoj","praveen","ravi","nani","rama","nikitha","geethika") 
+val rdd = sc.parallelize(names)
+val groupRdd = rdd.groupBy(ele => ele.charAt(0))
+
+val pairRdd = rdd.map(ele => (ele.charAt(0),ele))
+val groupByKeyRdd = rdd.groupByKey()
+
+
+
+val names = List("veera","venkat","nani","rama","nikitha","geethika","meghana","manoj","praveen","ravi","veera","venkat","nani","rama","nikitha","geethika","geethika","meghana","manoj","praveen","ravi","nani","rama","nikitha","geethika")
+
+
+val rdd = sc.parallelize(names)
+
+val pairRdd = rdd.map(ele => (ele,1))
+
+val groupByRdd = pairRdd.groupByKey().map(t => (t._1, t._2.sum)).collect()
+
+val reduceByKeyRdd = pairRdd.reduceByKey(_ + _)
+
+
+(veera,1)
+(venkat,1)
+nani,1
+rama,1
+nikitha,1
+veera,1
+nani,1
+veera,1
+
+
+veera -> 1,1,1,1      ===> veera -> 1+1+1+1 ==> veera -->4
+nani -> 1,1,1
+praveen -> 1,1,1,1,1
+
+
+
+
+
+veera -> 1,1
+ravi -> 1,1,1,1,1
+nani -> 1,1,1,1,1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+val words = Array("one", "two", "two", "three", "three", "three") 
+val wordPairsRDD = sc.parallelize(words).map(word => (word, 1))
+val wordCountsWithReduce = wordPairsRDD .reduceByKey(_ + _) .collect()
+val wordCountsWithGroup = wordPairsRDD .groupByKey().map(t => (t._1, t._2.sum)) .collect()

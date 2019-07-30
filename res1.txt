@@ -1,0 +1,97 @@
+import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.functions.{trim, length, when}
+import org.apache.spark.sql.Column
+
+val ardw_df = sqlContext.sql("select * from cstonedb3.ardw_trans_unbilled_keys");
+
+val gms_merchant = sqlContext.sql("select * from cstonedb3.gms_merchant_char");
+val triumph_demographics = sqlContext.sql("select * from cstonedb3.triumph_demographics"); 
+val gstar_account_details = sqlContext.sql("select * from cstonedb3.gstar_account_details");
+val gstar_card_details = sqlContext.sql("select * from cstonedb3.gstar_card_details"); 
+val crt_currency = sqlContext.sql("select * from crt_currency");   
+val crt_country = sqlContext.sql("select * from crt_country"); 
+val gdr_se_characteristics = sqlContext.sql("select * from cstonedb3.gdr_se_characteristics");
+val mns_demographics_ar = sqlContext.sql("select * from cstonedb3.mns_demographics_ar");
+val apa_ar_demographic = sqlContext.sql("select * from cstonedb3.apa_ar_demographic");
+
+def nullCheck(id:String) = if(id != null && !id.isEmpty) id.trim else ""
+
+val makeEmptyStringsNull = udf(nullCheck(_:String))
+
+val func = udf( (s:String) => s )
+
+case when trim(t1.trans_cd) IN  ('0410C','0410P') then t1.trans_am*-1 else  t1.trans_am end pmd_ar_bill_am,
+when(ardw_df("trans_cd") isin ("0410C","0410P"),ardw_df("trans_am")-1).otherwise(ardw_df("trans_am")).alias("pmd_ar_bill_am"),
+crt_country("iso_alpha_cd").as("pmd_ar_bill_am_curr_cd"), 
+ardw_df("subm_trans_am").as("pmd_ar_subm_trans_am"), 
+crt_country("iso_alpha_cd").as("pmd_ar_subm_trans_am_curr_cd"), 
+ardw_df("se10").as("pmd_ar_se_acct_no"), 
+gms_merchant_char("se_sic_cd").as("pmd_ar_se_sic_cd"), 
+gms_merchant_char("se_mer_ctgy_cd").as("pmd_ar_se_mcc_cd"), 
+ardw_df("trans_cd").as("pmd_ar_trans_type_cd"), 
+ardw_df("btch_no").as("pmd_ar_btch_no"), 
+makeEmptyStringsNull(ardw_df("bill_thru_dt")).as("pmd_ar_bill_thru_dt"), 
+ardw_df("ardw_sor_org").as("pmd_ar_mkt_cd"), 
+COALESCE(triumph_demographics("gaicodeacctstatd"),gstar_account_details("acc_int_status"),mns_demographics_ar("sta_cd1"),apa_ar_demographic("sta_cd")).as("pmd_ar_acct_sta_cd"),
+makeEmptyStringsNull(COALESCE(t3.gaidatelaststatchgd,t4.acc_date_last_stat_chg))).as("pmd_ar_acct_sta_dt"),
+makeEmptyStringsNull(COALESCE(t3.gaidateplstexprd,t5.crd_amed_date_expire,t10.plstc_expr_dt,t11.card_expr_mo_yr))).as("pmd_ar_plstc_expr_dt"),
+makeEmptyStringsNull(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr))).as("pmd_ar_cm_since_dt"),
+makeEmptyStringsNull(COALESCE(t3.gaidateplstissuedd,t4.acc_dt_opened,t10.acct_creat_dt,t11.card_estb_mo_yr))).as("pmd_ar_card_iss_dt"),
+
+ardw_df("logo_grp").as("pmd_ar_logo_grp"), 
+ardw_df("plan_grp").as("pmd_ar_plan_grp"), 
+ardw_df("flm_seq_no").as("pmd_ar_flm_sq_no"), 
+
+ardw_df("config_id").as("pmd_ar_config_id"), 
+when(ardw_df("srce_sys")=== "TRIUMPH","CONSTRI")
+.when(ardw_df("srce_sys")=== "GLOBESTAR","CONSGSTAR")
+.when(ardw_df("srce_sys")=== "MNS","CONSMNS")
+.when(ardw_df("srce_sys")=== "APAR","CONSAPAR").otherwise("CONSUNK").alias("pmd_ar_sor"),
+ardw_df("list_idx").as("pmd_ar_list_idx"),
+'${hiveconf:initial.processing.date}'.as("pmd_ar_init_proc_dt"),
+''.as("pmd_ar_trans_cd_cat_cd"),
+''.as("pmd_ar_trans_seq_no"),
+''.as("pmd_ar_btch_sub_cd"),
+''.as("pmd_ar_db_cr_cd"),
+''.as("pmd_ar_fin_ctgy_cd"),
+''.as("pmd_ar_srce_trans_cd"),
+''.as("pmd_ar_srce_trans_type_cd"),
+trim(t9.iso_mer_ctgy_cd) as pmd_seller_se_mcc"),
+''.as("pmd_ar_srce_lgc_modl_cd"),
+''.as("pmd_ar_trans_plan_type_cd"),
+''.as("pmd_ar_base_acct_id"), 
+ardw_df("ardw_sor_org").as("pmd_ar_mkt_cd"), 
+
+
+
+val joined_df1 = ardw_df.join(gms_merchant_char,ardw_df("se10") === gms_merchant_char("se10"),"left_outer")
+                       .join(triumph_demographics,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === triumph_demographics("CM13"),"left_outer")
+					   .join(gstar_account_details,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === gstar_account_details("CM13"),"left_outer")
+					   .join(gstar_card_details,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === gstar_card_details("CM13"),"left_outer")
+					   .join(crt_currency,ardw_df("bill_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_currency,ardw_df("subm_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_country,ardw_df("iss_ctry_cd") === crt_country("ctry_id"),"left_outer")
+					   .join(gdr_se_characteristics,ardw_df("se10") === gdr_se_characteristics("se_no"),"left_outer")
+					   .join(mns_demographics_ar,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === mns_demographics_ar("CM13"),"left_outer")
+					   .join(crt_country,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === apa_ar_demographic("CM13"),"left_outer")
+					   .select(ardw_df("trans_id").cast("int").as("pmd_ar_trans_id"),
+   )
+					   
+
+					   
+					   
+					   
+val joined_df2 = ardw_df.join(gms_merchant_char,ardw_df("se10") === gms_merchant_char("se10"),"left_outer")
+                       .join(triumph_demographics,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === triumph_demographics("CM13"),"left_outer")
+					   .join(gstar_account_details,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === gstar_account_details("CM13"),"left_outer")
+					   .join(gstar_card_details,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === gstar_card_details("CM13"),"left_outer")
+					   .join(crt_currency,ardw_df("bill_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_currency,ardw_df("subm_curr_cd") === crt_currency("iso_no_cd"),"left_outer")
+					   .join(crt_country,ardw_df("iss_ctry_cd") === crt_country("ctry_id"),"left_outer")
+					   .join(gdr_se_characteristics,ardw_df("se10") === gdr_se_characteristics("se_no"),"left_outer")
+					   .join(mns_demographics_ar,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === mns_demographics_ar("CM13"),"left_outer")
+					   .join(crt_country,concat(substr(t1.CM15,1,11),substr(t1.CM15,13,2)) === apa_ar_demographic("CM13"),"left_outer")
+					   .select(ardw_df("trans_id").cast("int").as("pmd_ar_trans_id"),
+   )
+	
+   

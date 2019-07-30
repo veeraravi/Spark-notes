@@ -1,0 +1,60 @@
+Full SW Name: scala 2.12.2
+End User License Agreement Link:scala.com/wp-content/uploads/2012/11/Scala-EULA-Term-FINAL-Dec-2008.pdf
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+Full SW Name: apache spark 2.2.2
+End User License Agreement Link:https://www.apache.org/licenses/
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+Full SW Name: Intellij community edition 2018.2.2
+End User License Agreement Link:https://www.jetbrains.com/store/license_personal.html
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+
+
+Full SW Name: ubuntu 18
+End User License Agreement Link:https://askubuntu.com/questions/804392/what-is-the-meaning-of-this-message
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+
+Full SW Name: VirtualBox 5.2.18
+End User License Agreement Link:https://download.virtualbox.org/virtualbox/5.2.18/UserManual.pdf
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+
+Full SW Name: apache hadoop 2.8.0
+End User License Agreement Link:http://www.apache.org/licenses/LICENSE-2.0.txt
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+
+Full SW Name: apache kafka_2.11-2.0.0 
+End User License Agreement Link:https://www.confluent.io/eula-ra
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar
+
+
+
+Full SW Name: apache ZooKeeper - Version 3.4.9 
+End User License Agreement Link:http://www.apache.org/licenses/LICENSE-2.0 
+End date: 31-12-2020
+Purpose of use (Demo/POC/Commercial development/Production use/Internal Training/?):DEMO/POC/internal Training
+Machine Names:HDLveeraravikumar

@@ -1,0 +1,88 @@
+Requirement:
+
+Compare database source & target queries data  at row level only with one of the columns data must be parametrized. Output must be written as csv format. Multiple source & target queries are allowed. Queries must be configured from config file.
+
+ Assumptions:
+
+Direct Tables are not allowed for source and target.
+Source & target data must contain all the below data types: string, integer, float and date fields
+Row level check, by using string concatenation not allowed.
+Please assume all config parameters are configured always.
+Any reason source & target query schema structures are differ or columns order differs throw the error for a particular query and proceed for other queries execution. Program should not be stopped for one of the query problem.
+Project IDE: http://scala-ide.org/ (Eclipse Scala IDE)
+
+Database: MySQL (database name as unique name(Hash Key))
+
+Programming Language: Must be Spark Scala
+
+Spark Version : 2.2.*
+
+Scala Version: 2.11.*
+
+Sample Config file:
+
+db.source_connectionstr0=connection string
+
+db.source_query0="select empName, empId, dob,sal from emp_1.src_employee"
+
+db.target_connectionstr0=connection string
+
+db.target_query0="select empName, empId, dob,sal from emp_2.trgt_employee" 
+
+db.param_col0=parameter column ( example: dept )
+
+db.param_col_val_list0="101,104,106,107"
+
+db.source_connectionstr1=connection string
+
+db.source_query1="select deptId,deptName,doj,avgSal from dept_1.src_dept"
+
+db.target_connectionstr1=connection string
+
+db.target_query1="select deptId,deptName,doj,avgSal from dept_2.trgt_dept"
+
+db.param_col1=parameter column ( example: dept )
+
+db.param_col_val_list1="SALES,ACCOUNTING,HR,ADMIN"
+
+db.totalNoOfQueries=2
+
+
+==============================================
+
+object Test{
+
+def main(args:Array[String]):Unit={
+val spark = SparkSession.builder().appName("Data compare").master("local[*]").getOrCreate();
+
+val url=
+val srcTable1=
+val columnName=
+val lowerBound=0
+val upperbound=100
+val noOfPartitions=4
+
+val srcProps = new java.util.Properties;
+srcProps.put("username","root")
+srcProps.put("password","password")
+
+val trgtProps = new java.util.Properties;
+trgtProps.put("username","root")
+trgtProps.put("password","password")
+
+val srcEmpDf = spark.read.jdbc(url, table, columnName, lowerBound, upperBound, numPartitions, srcProps)
+val trgtEmpDf = spark.read.jdbc(url, table, columnName, lowerBound, upperBound, numPartitions, trgtProps)
+
+
+}
+}
+
+ Deliverables:
+
+Database Scripts with database name as unique name(Hash Key)). 
+Drop table commands must exist to re-run the same script.
+Project source code
+Compiled jar file
+Spark Submit Command
+Config file (if possible single server config file deployment)
+Any other assumptions made based on programming challenges please publish those details as separate assumptions.txt file(Additional questions are not going to be answered at this time hence providing provision to add assumptions sheet).

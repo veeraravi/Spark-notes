@@ -1,0 +1,113 @@
+spark-shell –master yarn  --num-executors 2
+
+import java.util.Calendar
+
+import org.apache.spark.sql.SparkSession
+
+import spark.implicits._
+
+ 
+
+val format = new java.text.SimpleDateFormat("dd-MM-yyyy")
+
+val date = format.format(new java.util.Date())
+
+ 
+
+val security_data = spark.read.parquet("s3://rfi-staging/21-12-2016/*")
+
+ 
+
+security_data.createOrReplaceTempView("security_master_table")
+
+ 
+
+val sqlDF_security_master = spark.sql("SELECT TICKER,ASSET_CLASS_CODE FROM security_master_table")
+
+ 
+
+ 
+
+val country = spark.read.parquet("s3://rfi-staging/reference-files/Country/*")
+
+ 
+
+country.createOrReplaceTempView("country_table")
+
+ 
+
+val sqlDF_country = spark.sql("SELECT count(*) from country_table")
+
+ 
+
+//sqlDF_country.show
+
+ 
+
+val country_join = spark.sql("SELECT * from security_master_table s JOIN country_table c  where s.Country_Issue = c.COUNTRY_ISO_2")
+
+ 
+
+country_join.saveAsParquetFile("s3://rfi-processed/good-records" + date)
+
+ 
+
+ 
+
+ 
+
+val currency = spark.read.parquet("s3://rfi-staging/reference-files/Currency/*")
+
+ 
+
+currency.createOrReplaceTempView("currency_table")
+
+ 
+
+val sqlDF_currency = spark.sql("SELECT count(*) from currency_table")
+
+ 
+
+sqlDF_currency.show
+
+ 
+
+val currency_join = spark.sql("SELECT * from security_master_table s join currency_table cur  where s.CURRENCY_TRADED = cur.ISO_CCY_CODE")
+
+ 
+
+currency_join.show
+
+ 
+
+ 
+
+val issue_master = spark.read.parquet("s3://rfi-staging/reference-files/Issue_Master/*")
+
+ 
+
+issue_master.createOrReplaceTempView("issue_master_table")
+
+ 
+
+val sqlDF_issue_master = spark.sql("SELECT count(*) from issue_master_table")
+
+ 
+
+sqlDF_issue_master.show
+
+ 
+
+val issue_master_join = spark.sql("SELECT * from security_master_table s join issue_master_table im  where s.ISSUER = im.ISSUER")
+
+ 
+
+issue_master_join.show
+
+ 
+
+ 
+
+ 
+
+val final_gooddata = spark.sql("SELECT sm.CADIS_ID, sm.ASSET_CLASS_CODE, sm.BB_EXCH_CODE, sm.CADIS_ID_ISSUER, sm.COUNTRY_INCORPORATION, sm.COUNTRY_ISSUE, cou.COUNTRY_NAME as COUNTRY_ISSUE_DESC, sm.CURRENCY_TRADED, cur.ISO_DESCRIPTION as CURRENCY_TRADED, sm.CUSIP, sm.CUSIP/ISIN,sm.DATA_QUALITY_IND, sm.INDUSTRY_CODE, sm.ISIN, sm.ISSUE_DATE, iss.LONG_NAME as ISSUER_LONG_NAME, iss.SHORT_NAME as ISSUER_SHORT_NAME, sm.PRIMARY_EXCHANGE, sm.PRIMARY_SECURITY_TICKER, sm.SEC_TYP_BB, sm.SEC_TYP2_BB, sm.SEDOL, sm.TICKER, sm.TICKER_BB, sm.CURRENCY_SETTLEMENT from security_master_table sm JOIN country_table cou JOIN currency_table cur JOIN issue_master_table iss  WHERE iss.CADIS_ID_ISSUER = sm.CADIS_ID_ISSUER and cou.COUNTRY_ISO_2  = sm.COUNTRY_ISSUE and sm.CURRENCY_TRADED = cur.ISO_CCY_CODE")

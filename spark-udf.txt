@@ -1,0 +1,64 @@
+A    B       C
+--------------
+4    blah    2
+2            3
+56   foo     3
+And add a column to the end based on whether B is empty or not:
+
+A    B       C     D
+--------------------
+4    blah    2     1
+2            3     0
+56   foo     3     1
+
+Try withColumn with the function when as follows:
+
+val sqlContext = new SQLContext(sc)
+import sqlContext.implicits._ // for `toDF` and $""
+import org.apache.spark.sql.functions._ // for `when`
+
+val df = sc.parallelize(Seq((4, "blah", 2), (2, "", 3), (56, "foo", 3), (100, null, 5)))
+    .toDF("A", "B", "C")
+
+val newDf = df.withColumn("D", when($"B".isNull or $"B" === "", 0).otherwise(1))
+newDf.show() shows
+
++---+----+---+---+
+|  A|   B|  C|  D|
++---+----+---+---+
+|  4|blah|  2|  1|
+|  2|    |  3|  0|
+| 56| foo|  3|  1|
+|100|null|  5|  0|
++---+----+---+---+
+I added the (100, null, 5) row for testing the isNull case.
+
+I tried this code with Spark 1.6.0 but as commented in the code of when, it works on the versions after 1.4.0.
+
+
+My bad, I had missed one part of the question.
+
+Best, cleanest way is to use a UDF. Explanation within the code.
+
+// create some example data...BY DataFrame
+// note, third record has an empty string
+case class Stuff(a:String,b:Int)
+val d= sc.parallelize(Seq( ("a",1),("b",2),
+     ("",3) ,("d",4)).map { x => Stuff(x._1,x._2)  }).toDF
+
+// now the good stuff.
+import org.apache.spark.sql.functions.udf
+// function that returns 0 is string empty 
+val func = udf( (s:String) => if(s.isEmpty) 0 else 1 )
+// create new dataframe with added column named "notempty"
+val r = d.select( $"a", $"b", func($"a").as("notempty") )
+
+    scala> r.show
++---+---+--------+
+|  a|  b|notempty|
++---+---+--------+
+|  a|  1|    1111|
+|  b|  2|    1111|
+|   |  3|       0|
+|  d|  4|    1111|
++---+---+--------+
