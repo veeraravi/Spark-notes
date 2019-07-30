@@ -1,0 +1,105 @@
+=============COUNTRY=========================
+
+CREATE EXTERNAL TABLE COUNTRY (COUNTRY_ISO_2 STRING,COUNTRY_ISO_3 STRING,COUNTRY_NAME STRING)row format delimited 
+fields terminated by ','
+lines terminated by '\n'
+LOCATION 's3n://rfi-curatedzone/country' 
+tblproperties("skip.header.line.count"="1");
+	
+=============CURRENCY=========================	
+	
+CREATE EXTERNAL TABLE CURRENCY (ISO_CCY_CODE  STRING, ISO_DESCRIPTION  STRING, COUNTRY_ISO_2 STRING) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde' with serdeproperties ("separatorChar" = ",", "quoteChar" = "\"") LOCATION 's3n://rfi-curatedzone/currency' tblproperties("skip.header.line.count"="1");
+
+
+	
+===================ISSUER==============================
+
+CREATE EXTERNAL TABLE ISSUER_MASTER (
+CADIS_ID_ISSUER  string,
+ LONG_NAME   string,
+ SHORT_NAME  string,
+ COUNTRY_OF_DOMICILE   string,
+ COUNTRY_OF_INCORPORATION   string,
+ COUNTRY_OF_RISK_IVZ   string,
+ BLK_ISSUER_ID  string,
+ REPORT_ISSUER_NAME  string,
+ COUNTRY_RISK_ISO_CODE   string,
+ ISSUER_ISIN  string,
+ ID_BB_GLOBAL_COMPANY string
+)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde' with serdeproperties ("separatorChar" = ",", "quoteChar" = "\"") LOCATION 's3n://rfi-curatedzone/issue-master' tblproperties("skip.header.line.count"="1");
+
+==================================================Security Data Table=================================================
+
+create external table security_master
+
+(
+CADIS_ID string,
+ ASSET_CLASS_CODE string,
+ BB_EXCH_CODE string,
+ CADIS_ID_ISSUER string,
+ COUNTRY_INCORPORATION string,
+ COUNTRY_ISSUE string,
+ COUNTRY_ISSUE_DESC  string,
+ CURRENCY_TRADED string,
+ CURRENCY_TRADED_DESC  string,
+ CUSIP string,
+ CUSIP_ISIN string,
+DATA_QUALITY_IND string,
+ INDUSTRY_CODE string,
+ ISIN string,
+ ISSUE_DATE string,
+ ISSUER_LONG_NAME string,
+ISSUER_SHORT_NAME string,
+ PRIMARY_EXCHANGE string,
+ PRIMARY_SECURITY_TICKER string,
+ SEC_TYP_BB string,
+ SEC_TYP2_BB string,
+ SEDOL string,
+ TICKER string,
+ TICKER_BB string,
+ CURRENCY_SETTLEMENT string
+)
+
+row format delimited 
+fields terminated by ','
+lines terminated by '\n'
+location 's3://rfi-curatedzone/security-master/good-records/22-12-2016'
+tblproperties ("skip.header.line.count"="1");
+
+=============================================Security Data bad ones ============================================================
+
+
+create external table security_master_rej_records
+
+(
+CADIS_ID  string,
+ ASSET_CLASS_CODE string,
+ BB_EXCH_CODE string,
+ CADIS_ID_ISSUER  string,
+ COUNTRY_INCORPORATION string,
+ COUNTRY_ISSUE  string,
+ CURRENCY_TRADED  string,
+ CUSIP string,
+ CUSIP_ISIN string,
+DATA_QUALITY_IND string,
+ INDUSTRY_CODE string,
+ ISIN string,
+ ISSUE_DATE string,
+ NAME_LONG string,
+ NAME_SHORT string,
+ PRIMARY_EXCHANGE string,
+ PRIMARY_SECURITY_TICKER string,
+ SEC_TYP_BB string,
+ SEC_TYP2_BB string,
+ SEDOL string,
+ TICKER string,
+ TICKER_BB string,
+ CURRENCY_SETTLEMENT string
+)
+
+row format delimited 
+fields terminated by ','
+lines terminated by '\n'
+location 's3://rfi-curatedzone/security-master/Bad-records/22-12-2016'
+tblproperties ("skip.header.line.count"="1");

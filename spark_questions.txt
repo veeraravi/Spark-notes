@@ -1,0 +1,113 @@
+1)What is an RDD, is it different from a data frame?
+
+
+RDD: It is the basic unit of representation in  Spark and it is considered as resilient distributed dataset which are distributed across as partitions in the cluster.
+
+These are immutable and by deafault size of the partition is based on the block size of a file system.
+
+Reasons it is different from dataframe
+
+Unstrcutred data can be handled using RDD's but not with dataframes and also we cannot use DSL's using RDD's
+
+Schema specification is mandatory for RDDS bit where as datframes can inherit schema from different datasources
+
+
+
+Dataframes are more optimized when compared with RDD becausee they have custom memory management and serlization techniques like tungsten and Kryo
+
+2)Why do we use spark?
+
+There are different reasons for 
+
+1. If you want to do iterative stuff , you can build a framework  and do the repetative tasks.
+2. If you want to build lamda architecture(Batch and Streaming layers )
+
+3)What is the difference between spark.sql and dataframe operations? Which should you use
+when?
+
+
+Dataframe is an abstraction on top of Spark and it is table like strcutre  and where as sparksql is a library where you can query the dataframes and datasets using Spark SQL
+
+4)Assuming there is a sqldb table named database.table and I wanted to delete particular records
+how would I do that? How would I change the values in columnA in the same database.table
+from ‘a’ to ‘b’?
+DELETE Statement
+
+The DELETE statement is used to remove one or more rows from a database table.
+
+Since the DELETE statement can affect one or more rows, you should take great care in making sure you’re deleting the correct rows!
+
+Like the INSERT statement, the DELETE statement can be part of a transaction.  Based on the success of the transaction you can either COMMIT or ROLLBACK the changes.
+
+Once a delete statement completes, @@ROWCOUNT is updated to reflect the number of rows affected.
+
+The basic structure of the DELETE statement is
+
+DELETE tableName
+WHERE  filterColumn=filterValue;
+
+The DELETE statement is typically in two parts:
+
+    The tableName to update
+    The WHERE clause, which specifies which rows to include in the update operation.
+
+Let assume that the director of Human Resources wants to remove all pay history changed before 2002.
+
+Here is the DELETE statement you could use:
+
+BEGIN TRANSACTION
+DELETE HumanResources.EmployeePayHistory
+WHERE  RateChangeDate < '2002-01-01'
+ROLLBACK
+
+Of course before you run this I would test with a SELECT statement.  This is the statement I would run to make sure what I’m intending to delete is correct.
+
+SELECT BusinessEntityID, RateChangeDate
+FROM   HumanResources.EmployeePayHistory
+WHERE  RateChangeDate < '2002-01-01'
+
+When you run this statement, the specified rows are removed from the table.
+
+5)What is sparkmagic, where can I use it and why would I use it?
+sparkmagic
+
+If you want to integrate spark with interactive notebooks using Spark rest server then sparkmagic project can be helpful.
+
+I havent used any zeppelin or jupyter but in my reasearch I found this.
+
+
+6)What is modularization of code? Give an instance of where you would use it? What are the pros
+and cons?
+
+Definition - What does Modular Programming mean?
+
+Breaking the large complex code into modules which can be able to reuse across the projecct.
+
+Pros are reusability of the code 
+cons are too much of modularity leads to confusion for other developers to understand
+
+
+7)What is logging? Why is it important? Give an example of a situation where logging would be
+useful.
+
+Logging is way to tell the program progress and it is always important to do to track down the errors in a large code containing iteration etcs.
+
+I used Logging in Sark development using typesafe and log4j packages
+
+8)What is spark context? How do you start one? Should you put a sc.stop() at the end of all
+scripts?
+
+Spark context tells the framework that the spark code has started executing 
+
+Depends on language we can specift by passing configurations if you have sc.sparkContext using scala
+
+
+9)What is a JAR file? When and why do I need it?
+
+Jar is package which contains all the files with respecitive to the application. 
+
+If you are developing applications using Spark you need to make jar because spark-submits acceppts jar for applications developed using Scala and Java.
+
+You can use SBT or Maven to do this 
+
+I am comfortable with SBT and I can use assembly command for making a jar

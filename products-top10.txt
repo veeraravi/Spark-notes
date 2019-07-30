@@ -1,0 +1,169 @@
+create table productsInfo(userId String, productId String,action String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE;
+
+load data local inpath '/data/hive/productLog.txt' into table productsInfo;
+
+create table productBrowsed(productId String,browse String,click String)ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE;
+
+INSERT INTO TABLE productBrowsed SELECT productId, 1 as browse, 0 as click from product where action = "Browse";
+INSERT INTO TABLE productBrowsed SELECT productId, 0 as browse, 1 as click from product where action = "click";
+
+select productId,sum(browse) as browseCount,sum(click) as clickCount from productBrowsed groupBy productId
+
+
+solution 2:
+
+import org.apache.spark.sql.functions._
+import sqlContext.implicits._
+
+val productDF = sqlContext.read.format("csv").option("header", "false").option("inferSchema", "true").load("/data/hive/products.csv")
+val resDF = productDF.withColumn("browse", when($"action" === "Browse", 1).otherwise(0))
+					 .withColumn("click", when($"action" === "Click", 1).otherwise(0))
+						   
+resDF.registerTempTable("ProductsTemp")
+
+val countDf = sqlContext.sql("select productId,sum(Browse) as browseCnt, sum(click) as clickCnt from ProductsTemp groupBy productId").sort($"browseCnt",$"clickCnt".desc)
+
+countDf.show(10)
+
+solutionn 3: 
+ 
+object Top10Products {
+  def main(args: Array[String]): Unit = {
+    val conf = new SparkConf().setMaster("local[*]").setAppName("Top10Products analysis")
+    val sc = new SparkContext(conf)
+    val baseRdd = sc.textFile(args(0))
+    val splits = baseRdd.flatMap(line => line.split(","))
+	val actions = splits.filter(x => (x =="Browse") || (x == "Click"))
+	val actionPair = actions.map(p=>(p, 1))      
+    val product = actionPair.reduceByKey(_+_)
+    val swapKeyValue = product.map(key=>key.swap)
+    val sortRdd = swapKeyValue.sortByKey(false)
+    val top10 = sortRdd.take(10)
+    top20.foreach(println)
+    
+
+  }
+
+}
+
+
+solution 4:
+
+
+
+public class TopTenRecords implements Tool {
+
+    public int run(String[] args) throws Exception {
+        Job top10Products = new Job(getConf());
+
+        top10Products.setJarByClass(this.getClass());
+        top10Products.setJobName("top 10 product Count");
+        top10Products.setMapperClass(TopTenProductsMapper.class);
+        top10Products.setReducerClass(TopTenReduce.class);
+        top10Products.setMapOutputKeyClass(Text.class);
+        top10Products.setMapOutputValueClass(LongWritable.class);
+        top10Products.setOutputKeyClass(Text.class);
+        top10Products.setOutputValueClass(LongWritable.class);
+        top10Products.setNumReduceTasks(1);
+
+        FileInputFormat.setInputPaths(top10Products, new Path(args[0]));
+        FileOutputFormat.setOutputPath(top10Products, new Path(args[1]));
+
+        
+        FileSystem fs = FileSystem.get(getConf());
+        if (fs.exists(new Path(args[1]))) {
+            fs.delete(new Path(args[1]), true);
+        }
+
+        return top10Products.waitForCompletion(true) == true ? 0 : 1;
+    }
+
+    public static void main(String[] args) throws Exception {
+        int result = ToolRunner.run(new Configuration(), new TopTenRecords(), args);
+       
+    }
+	
+
+    public static class TopTenProductsMapper extends Mapper<LongWritable, Text, Text, LongWritable> {
+        TreeMap<String, Integer> action = null;
+
+        
+        protected void setup(Mapper<LongWritable, Text, Text, LongWritable>.Context context) throws IOException, InterruptedException {
+            action = new TreeMap<String, Integer>();
+        }
+
+        protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, LongWritable>.Context context)
+                throws IOException, InterruptedException {
+            String sValue = value.toString();
+            String[] tokens = sValue.split(",");
+			String actionType = "";
+			if("Browser".equealsIgnoreCase(tokens[2]) || "Click".equealsIgnoreCase(tokens[2]))
+			actionType=tokens[2]+","+tokens[1];
+			
+            if (action.containsKey(actionType)) {
+                action.put(actionType, action.get(actionType) + 1);
+            }
+            else {
+                action.put(actionType, 1);
+            }
+
+           }
+       
+        protected void cleanup(Mapper<LongWritable, Text, Text, LongWritable>.Context context) throws IOException, InterruptedException {
+            for (Map.Entry<String, Integer> map : action.entrySet()) {
+                context.write(new Text(map.getKey()), new LongWritable(map.getValue()));
+            }
+        }
+    }
+
+    public static class TopTenReduce extends Reducer<Text, LongWritable, Text, LongWritable> {
+        TreeMap<String, Long> action = null;
+        Map<String, Long> sortedMap = null;
+
+        
+        protected void setup(Reducer<Text, LongWritable, Text, LongWritable>.Context context) throws IOException, InterruptedException {
+            action = new TreeMap<String, Long>();
+
+        }
+
+        @Override
+        protected void reduce(Text key, Iterable<LongWritable> value, Reducer<Text, LongWritable, Text, LongWritable>.Context ctx)
+                throws IOException, InterruptedException {
+            for (LongWritable actns : value) {
+                action.put(key.toString(), actns.get());
+            }
+          }
+
+        @Override
+        protected void cleanup(Reducer<Text, LongWritable, Text, LongWritable>.Context context) throws IOException, InterruptedException {           
+            sortedMap = TreeMapDemo.sortByValues(action);
+			int count = 0;
+            for (Entry<String, Long> map : sortedMap.entrySet()) {
+			
+			String s = map.getKey().split(",");
+			String action = s[0];
+			String prodId = s[1];
+			
+			if (action.containsKey(actionType)) {
+                action.put(actionType, action.get(actionType) + 1);
+            }
+            else {
+                action.put(actionType, 1);
+            }
+			
+                context.write(new Text(map.getKey()), new LongWritable(map.getValue()));
+                count++;
+                if (count == 20) {
+                    break;
+                }
+            }
+
+           
+
+        }
+    }
+
+
+}
+
+

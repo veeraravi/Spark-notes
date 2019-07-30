@@ -1,0 +1,59 @@
+**************************************Install Drivers EC2***********************************************
+sudo yum install mysql-server
+
+sudo chkconfig mysqld on
+
+sudo service mysqld start
+
+mysqladmin -u root password password
+
+mysqladmin -u root -p create rfidemo
+
+**************************************create User EC2************************************************
+
+CREATE USER 'rfiuser'@'%' IDENTIFIED BY 'password' ;
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION ;
+
+FLUSH PRIVILEGES;
+
+GRANT ALL PRIVILEGES ON *.* TO 'rfiuser_new'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION ;
+
+FLUSH PRIVILEGES;
+
+**************************************Downlpoad sqoop jars in EMR************************************************
+
+wget http://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.38.tar.gz
+tar -xvzf mysql-connector-java-5.1.38.tar.gz
+sudo cp mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar /usr/lib/sqoop/lib/
+
+
+
+**************************************Sqoop Export S3 Files to DataBase******* Landing ---->  MYSQL***************************
+
+
+sqoop export --connect jdbc:mysql://ec2-35-164-1-107.us-west-2.compute.amazonaws.com:3306/rfidemo --username root --password password --table securityData  --export-dir 's3://rfi-landing/security-master/22-12-2016/security_master_data' --input-lines-terminated-by "\n"  --input-fields-terminated-by ','  --input-null-string '\\N' --input-null-non-string '\\N'
+
+sqoop export --connect jdbc:mysql://ec2-35-164-1-107.us-west-2.compute.amazonaws.com:3306/rfidemo --username root --password password --table issueMaster  --export-dir 's3://rfi-landing/issue-master/issue-master' --input-lines-terminated-by "\n"  --input-fields-terminated-by ','  --input-null-string '\\N' --input-null-non-string '\\N'
+
+
+**************************************Sqoop import table from RDBMS to S3********* MYSQL ----> Stagng*************************
+
+
+sqoop import --connect jdbc:mysql://ec2-35-164-1-107.us-west-2.compute.amazonaws.com/rfidemo --username root --password password --table securityData --fields-terminated-by ',' --target-dir s3://rfi-stagng/security-master/22-12-2016 -m 1
+
+
+sqoop import --connect jdbc:mysql://ec2-35-164-1-107.us-west-2.compute.amazonaws.com/rfidemo --username root --password password --table issueMaster --fields-terminated-by ',' --target-dir s3://rfi-stagng/issue-master -m 1
+
+
+*******************************************************************************************************************************
+
+
+
+
+
+
+
+
+
+
