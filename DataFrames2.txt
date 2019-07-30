@@ -1,0 +1,72 @@
+
+val file = fs.globStatus(new Path(s"$sinkDir/part*"))(0).getPath() 
+fs.rename(file, new Path(s"$sinkDir/gremlin.fastq"))
+	import java.time.LocalDateTime
+import java.sql.Timestamp
+val df = Seq(
+    ("red", "2016-11-29 07:10:10.234"),
+    ("green", "2016-11-29 07:10:10.234"),
+    ("blue", "2016-11-29 07:10:10.234")).toDF("color", "date")
+
+
+
+df.where(
+     unix_timestamp($"date", "yyyy-MM-dd HH:mm:ss.S")
+       .cast("timestamp")
+       .between(
+          Timestamp.valueOf(LocalDateTime.now().minusHours(1)),
+          Timestamp.valueOf(LocalDateTime.now())
+       ))
+  .show()
+
+case class orig(city: String, product: String, Jan: Int, Feb: Int, Mar: Int)
+case class newOne(city: String, product: String, metric_type: String, metric_value: Int)
+
+val df = Seq(("c1", "p1", 123, 22, 34), ("c2", "p2", 234, 432, 43)).toDF("city", "product", "Jan", "Feb", "Mar")
+
+val newDf = df.as[orig].flatMap(v => Seq(newOne(v.city, v.product, "Jan", v.Jan), newOne(v.city, v.product, "Feb", v.Feb), newOne(v.city, v.product, "Mar", v.Mar)))
+newDf.show()
+
+
+ val df = Seq(("c1", "p1", 123, 22, 34), ("c2", "p2", 234, 432, 43)).toDF("city", "product", "Jan", "Feb", "Mar")
+ val months  = Seq("Jan", "Feb", "Mar")
+ val arrayedDF = df.withColumn("combined", array(months.head, months.tail: _*))_*)).select("city", "product", "combined")
+ 
+ val explodedDF = arrayedDF.selectExpr("city", "product", "posexplode(combined) as (pos, metricValue)")
+ 
+ val u =  udf((p: Int) => months(p))
+ val targetDF = explodedDF.withColumn("metric_type", u($"pos")).drop("pos")
+ targetDF.show()
+ 
+ 
+ import org.apache.spark.sql.types._
+import org.apache.spark.sql.Row
+
+val df = Seq(("c1", "p1", 123, 22, 34), ("c2", "p2", 234, 432, 43)).toDF("city", "product", "Jan", "Feb", "Mar")  
+
+df.show
++----+-------+---+---+---+
+|city|product|Jan|Feb|Mar|
++----+-------+---+---+---+
+|  c1|     p1|123| 22| 34|
+|  c2|     p2|234|432| 43|
++----+-------+---+---+---+
+
+// schema of the result data frame
+val schema = StructType(List(StructField("city", StringType, true), 
+                             StructField("product", StringType,true), 
+                             StructField("metric_type", StringType, true), 
+                             StructField("metric_value", IntegerType, true)))
+
+val months = List("Jan", "Feb", "Mar")    
+val index = List("city", "product")
+
+// use flatMap to convert each row into three rows
+val rdd = df.rdd.flatMap(
+    row => {
+        val index_values = index.map(i => row.getAs[String](i))
+        months.map(m => Row.fromSeq(index_values ++ List(m, row.getAs[Int](m))))
+    }
+)
+
+spark.createDataFrame(rdd, schema).show

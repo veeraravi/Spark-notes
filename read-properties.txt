@@ -1,0 +1,326 @@
+  
+  
+  if (args.length < 4){
+  system.err.println(
+  "Job CanadaGcdf requires <Source DB > < Target DB > <Batch Run Date> <config file path>  ")
+  System.exit(1)
+  }
+    val Seq( src_db, tgt_db,run_date, env ) = args.toSeq
+    
+    val envConf= new FileInputStream(env);
+    progprops.load(envConf)
+	/**
+	spark.executor.memory=24g
+    spark.executor.cores=5
+    spark.executor.memory=16g
+	*/
+    
+    val exec_mem = progprops.getProperty("spark.executor.memory")
+    val exec_cores = progprops.getProperty("spark.executor.cores")
+    val driv_mem = progprops.getProperty("spark.executor.memory")
+    val driv_cores = progprops.getProperty("spark.driver.cores")
+    val serializer = progprops.getProperty("spark.serializer")
+    val exec_inst =  progprops.getProperty("spark.executor.instances")
+    val dflt_parallel =  progprops.getProperty("spark.default.parallelism")
+    val cbo_enbl =  progprops.getProperty("spark.sql.cbo.enabled")
+    val cbo_joinr =  progprops.getProperty("spark.sql.cbo.joinReorder.enabled")
+    val shuf_prt =  progprops.getProperty("spark.sql.shuffle.partitions")
+    val debug_maxstr =  progprops.getProperty("spark.debug.maxToStringFields")
+    val schdlr_mode =  progprops.getProperty("spark.scheduler.mode")
+
+    
+    
+    
+    val spark = SparkSession.builder().appName("GcdfCanadaBatchA").enableHiveSupport().getOrCreate()
+    spark.conf.set("spark.executor.memory",exec_mem)
+    spark.conf.set("spark.executor.cores",exec_cores)
+    spark.conf.set("spark.driver.memory",driv_mem)
+    spark.conf.set("spark.driver.cores",driv_cores)
+    spark.conf.set("spark.sql.cbo.enabled",cbo_enbl)
+    spark.conf.set("spark.sql.cbo.joinReorder.enabled",cbo_joinr)
+    spark.conf.set("spark.sql.shuffle.partitions",shuf_prt)
+    spark.conf.set("spark.debug.maxToStringFields",debug_maxstr)
+    spark.conf.set("spark.scheduler.mode",schdlr_mode)
+    spark.conf.set("spark.executor.instances",exec_inst)
+    spark.conf.set("spark.default.parallelism",dflt_parallel)
+    spark.conf.set("spark.serializer",serializer)
+
+
+
+
+
+
+object Demo {
+    def main(args: Array[String]): Unit = {
+        println("Hello World!")
+    }
+}
+
+
+object Demo {
+  def main(args: Array[String]): Unit = {
+    val resourcesPath = getClass.getResource("/readme.txt")
+    println(resourcesPath.getPath)
+  }
+}
+
+
+
+if (!spark.catalog.tableExists(hive_db_name, hive_table_name)) {
+        System.err.println(s"""${hive_table_name} table does not exist in ${hive_db_name}""")
+        System.exit(1)
+      }
+
+
+import org.apache.log4j.{LogManager, Logger}
+
+@transient lazy val logger: Logger = LogManager.getLogger("")
+
+logger.error("Can't reading file from " + hdfsFilePath)
+        logger.trace(e.printStackTrace())
+        
+        
+        
+spark.driver.cores=2
+spark.executor.memory=24g
+spark.driver.memory=8g
+spark.executor.cores=2
+spark.executor.instances=20
+spark.serializer=org.apache.spark.serializer.KryoSerializer
+spark.sql.cbo.enabled=true
+spark.sql.cbo.joinReorder.enabled=true
+spark.default.parallelism=40
+
+$SPARK_HOME/bin/spark-submit --class ${CLASS_NAME} --master yarn --deploy-mode ${DEPLOY_MODE} --verbose --properties-file ${PROPERTIES_FILE}
+
+http://<edgenode>:8088/cluster
+
+
+spark.executor.cores = number of CPUs on a worker node
+spark.executor.instances = number of worker nodes on a cluster
+spark.executor.memory = max memory available on a worker node - overheads
+spark.default.parallelism = 2 * number of CPUs in total on worker nodes
+
+spark.executor.memory = 12335M
+spark.executor.cores = 2
+spark.executor.instances = 31
+spark.yarn.executor.memoryOverhead = 1396
+spark.default.parallelism = 62
+
+
+
+val count_value = hive_raw_data.createOrReplaceTempView("spark_table");
+          
+          
+          
+  org.apache.spark.deploy.SparkSubmit --master yarn --deploy-mode client --jars /hadoop/usr/hdp/2.4.2.0-258/sqoop/lib/db2jcc.jar,/hadoop/usr/hdp/2.4.2.0-258/sqoop/lib/db2jcc_license_cu.jar,/hadoop/usr/hdp/2.4.2.0-258/sqoop/lib/db2jcc_license_cisuz.jar --class com.hcsc.db.readdbtohive --verbose --queue SparkQue /tmp/i373591/db2-0.0.1-SNAPSHOT-jar-with-dependencies.jar yarn CLUS CLUS_TEMP
+          
+          
+          
+        val can_gcdf_temp1_Df = spark.sql("SELECT consno , accid, member_code, acc_no, opened_dt, reported_dt, NULL AS last_act_dt, COALESCE(l2,99) AS industry, lob, term, 999 AS currency, NULL as usd_rate, credit_limit , high_credit, balance, past_due_amt, secured, active, chargoff_dt, paymt_amt_act, paymt_pat_last_update, paymt_pat, last_paymt_dt, choff_temp, primary_flag , MIN(COALESCE(chargoff_dt, CASE WHEN mop IN ('7','8','9') THEN archive_date ELSE NULL END)) OVER (PARTITION BY consno, serial_num order by archive_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS choff_dt , MAX(CASE WHEN mop IN ('7','8','9') THEN TRUE ELSE FALSE END) OVER (PARTITION BY consno, serial_num ORDER BY archive_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS choff , closed_temp , CASE WHEN drop_trade1=1 THEN TRUE ELSE FALSE END AS suppress," 
+ + "MIN(COALESCE(CASE WHEN closed_dt='1900-01-01' THEN NULL ELSE closed_dt END, CASE WHEN NARRATIVE_CODE1 IN ('AC','AP','BD','BK','BR','CA','CG','CL','CN','CR','CY','CZ','DC','DD','GP','IG','LP','NC','PD','PF','PI','PN','PU','RD','RW','SE','SF','SS','TD','TR','VO','WO') OR NARRATIVE_CODE2 IN ('AC','AP','BD','BK','BR','CA','CG','CL','CN','CR','CY','CZ','DC','DD','GP','IG','LP','NC','PD','PF','PI','PN','PU','RD','RW','SE','SF','SS','TD','TR','VO','WO') OR (acct_type in ('I','M') and (balance=0 or balance is NULL) OR mop IN ('7','8','9')) THEN archive_date ELSE NULL END)) OVER (PARTITION BY consno, serial_num order by archive_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS closed_dt , MIN(archive_date) OVER (PARTITION BY consno, serial_num) AS first_bureau_dt , \
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ for (int i = 01; i <=30; i++) {
+                String query = "SELECT COUNT(1) FROM PBCDB01.CLM_PROC_HIST CPH inner join PBCDB01.CLM_HDR CH on CPH.CLM_ID = CH.CLM_ID "
+                        + " WHERE CPH.CLM_PROC_ST_CD='C' AND CPH.CLM_PROC_SUBST_CD='X' "
+                        + "AND CPH.CLM_STA_EFF_TS >= '" + year
+                        + "-" +  i
+                        + " 00:00:00.00' and CPH.CLM_STA_EFF_TS <'" + year
+                        + "-" +  i
+                        + " 23:59:59.99' for fetch only with ur";
+                        
+                        
+                        
+
+
+import java.io._
+
+import org.apache.hadoop.io.compress.SnappyCodec
+
+import com.typesafe.config.{Config, ConfigFactory}
+import java.io.File
+
+echo 
+spark-submit --jars "$jars" --queue SparkQue --files "$files" --conf "$conf_files" --driver-java-options "$driver" --master $run_mode --deploy-mode $deploy_mode --driver-memory $driver_memory --class com.hcsc.datalake.sparkstream.bstar.BstarProducer data-accelerator_spark_stream_kafka.jar local "$param_path" "$tableprm" >>$LogFile 2>&1
+
+
+def main(args: Array[String]) {
+
+    var claimConfigFilePath: String = ""
+
+    val usage = "spark-submit --master yarn --class com.hcsc.controller.ClaimAPIStreamingHDFS claim-api-<version>-jar-with-dependencies.jar
+     -c <Claim conf full file path>"
+
+    if (args.length < 2) {
+      println(usage)
+      System.exit(1)
+    }
+
+
+    args.sliding(2, 2).toList.collect {
+      case Array("-c", argClaimConfig: String) => claimConfigFilePath = argClaimConfig
+    }
+
+    if (!new java.io.File(claimConfigFilePath).exists()) {
+      println("Claim API configuration file does not exist: " + claimConfigFilePath)
+      println(usage)
+      System.exit(1)
+    }
+
+
+    val confFilePath = claimConfigFilePath
+    
+    val parsedConfig = ConfigFactory.parseFile(new File(confFilePath))
+    val config = ConfigFactory.load(parsedConfig)
+    val checkPointDirectory = config.getString("claim-api.checkPointDirectoryHDFS")
+    println("checkPointDirectory"+checkPointDirectory)
+    println("parsedConfig"+parsedConfig)
+    val ssc = StreamingContext.getOrCreate(
+    checkPointDirectory, () => createContext(checkPointDirectory, claimConfigFilePath, config))
+ var confFile = ""
+    val usage = "spark-submit --master yarn --class com.hcsc.controller.ClaimAPIBatch claim-api-<version>-jar-with-dependencies.jar 
+        -c conf_file_path -i hdfs_file_path"
+    var hdfsFilePath = ""
+   
+    
+    if (args.length < 2) {
+      println(usage)
+      System.exit(1)
+    }
+
+
+    args.sliding(2, 2).toList.collect {
+      case Array("-c", argSusConfig: String) =>
+        confFile = argSusConfig
+      case Array("-i", argHdfsFilePath: String) =>
+        hdfsFilePath = argHdfsFilePath.trim
+    }
+
+
+    if (!new java.io.File(confFile).exists()) {
+      println("Claim configuration file does not exist: " + confFile)
+      println(usage)
+      System.exit(1)
+    }
+
+
+    val parsedConfig = ConfigFactory.parseFile(new File(confFile))
+    val config = ConfigFactory.load(parsedConfig)
+
+    val kafka_broker = config.getString("claim-api.kafka-broker")
+    val dataTopic = config.getString("claim-api.kafka-claim-topic")
+
+
+    logger.info(getClass().getName() + ": creating new context")
+
+    
+    
+    claim-api {
+  kafka-claim-topic = "ccf_complete",
+  group-id = "localhost",
+
+  good-data-hadoop-file-format = "json",
+
+  bad-data-hadoop-file-format = "json",
+
+  spark-interval-second = "5",
+  number-of-repartition = "-1",
+  show-count = "false",
+ }
+ 
+ 
+       "bootstrap.servers" -> config.getString("claim-api.kafka-broker"),
+      "group.id" -> config.getString("claim-api.group-id"),
+      "key.deserializer" -> classOf[StringDeserializer],
+      
+      
+      
+key.serializer = "org.apache.kafka.common.serialization.StringSerializer" ,
+value.serializer : "org.apache.kafka.common.serialization.StringSerializer"
+
+
+
+val kafkaParams = Map[String, Object](
+      "bootstrap.servers" -> config.getString("claim-api.kafka-broker"),
+      "group.id" -> config.getString("claim-api.group-id"),
+      "key.deserializer" -> classOf[StringDeserializer],
+      "value.deserializer" -> classOf[StringDeserializer],
+      "auto.offset.reset" -> "latest",
+      "enable.auto.commit" -> (false: Boolean)
+    )
+    
+
+kafka-props-map =  { bootstrap.servers ="6667" ,
+                    batch.size = "100" ,
+                    linger.ms = "1" ,
+                    sasl.kerberos.service.name = "kafka" ,
+key.serializer = "org.apache.kafka.common.serialization.StringSerializer" ,
+value.serializer : "org.apache.kafka.common.serialization.StringSerializer" }
+
+
+
+
+
+    if (args.length < 2) {
+      println(usage)
+      System.exit(1)
+    }
+
+
+    args.sliding(2, 2).toList.collect {
+      case Array("-c", argClaimConfig: String) => claimConfigFilePath = argClaimConfig
+    }
+
+    if (!new java.io.File(claimConfigFilePath).exists()) {
+      println("Claim API configuration file does not exist: " + claimConfigFilePath)
+      println(usage)
+      System.exit(1)
+    }
+
+
+    val confFilePath = claimConfigFilePath
+    
+    val parsedConfig = ConfigFactory.parseFile(new File(confFilePath))
+    val config = ConfigFactory.load(parsedConfig)
+    val checkPointDirectory = config.getString("claim-api.checkPointDirectoryHDFS")
+    println("checkPointDirectory"+checkPointDirectory)
+    println("parsedConfig"+parsedConfig)
+
+
+
+
+  // Please provide 2 args yarn-mode and conf path
+  if (args.size == 2) {
+    mode = args(0).toString
+    confFilePath = args(1)
+  } else {
+    System.err.println("please provide spark mode and conf path")
+    System.exit(1)
+  }
+
+  val confFile = Paths.get(confFilePath).toFile
+
+  
+  // reading the config file 
+  val prop = ConfigFactory.parseFile(confFile)
+
+  // val prop = ConfigFactory.load()
+
+  // spark session creation
+  val spark = getSession(mode)
+
+  
+  //read properties 
+  val db = prop.getString("mem_gold.db")
+  val table = prop.getString("mem_gold.table")
+  val serde = prop.getString("mem_gold.serde")
+  val path = prop.getString("mem_gold.path")
+  

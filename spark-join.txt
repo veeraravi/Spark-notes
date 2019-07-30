@@ -1,0 +1,220 @@
+case class Profile(profileName: String, personid: Int, profileDescription: String)
+  /**
+    * * @param joinType Type of join to perform. Default `inner`. Must be one of:
+    * *                 `inner`, `cross`, `outer`, `full`, `full_outer`, `left`, `left_outer`,
+    * *                 `right`, `right_outer`, `left_semi`, `left_anti`.
+    */
+  val joinTypes = Seq(
+    "inner"
+    , "outer"
+    , "full"
+    , "full_outer"
+    , "left"
+    , "left_outer"
+    , "right"
+    , "right_outer"
+    , "left_semi"
+    , "left_anti"
+    //, "cross"
+  )
+  val df1 = spark.sqlContext.createDataFrame(
+    Person("Nataraj", 45, 2)
+      :: Person("Srinivas", 45, 5)
+      :: Person("Ashik", 22, 9)
+      :: Person("Deekshita", 22, 8)
+      :: Person("Siddhika", 22, 4)
+      :: Person("Madhu", 22, 3)
+      :: Person("Meghna", 22, 2)
+      :: Person("Snigdha", 22, 2)
+      :: Person("Harshita", 22, 6)
+      :: Person("Ravi", 42, 0)
+      :: Person("Ram", 42, 9)
+      :: Person("Chidananda Raju", 35, 9)
+      :: Person("Sreekanth Doddy", 29, 9)
+      :: Nil)
+  val df2 = spark.sqlContext.createDataFrame(
+    Profile("Spark", 2, "SparkSQLMaster")
+      :: Profile("Spark", 5, "SparkGuru")
+      :: Profile("Spark", 9, "DevHunter")
+      :: Profile("Spark", 3, "Evangelist")
+      :: Profile("Spark", 0, "Committer")
+      :: Profile("Spark", 1, "All Rounder")
+      :: Nil
+  )
+  val df_asPerson = df1.as("dfperson")
+  val df_asProfile = df2.as("dfprofile")
+  val joined_df = df_asPerson.join(
+    df_asProfile
+    , col("dfperson.personid") === col("dfprofile.personid")
+    , "inner")
+
+  println("First example inner join  ")
+
+
+  // you can do alias to refer column name with aliases to  increase readability
+  joined_df.select(
+    col("dfperson.name")
+    , col("dfperson.age")
+    , col("dfprofile.profileName")
+    , col("dfprofile.profileDescription"))
+    .show
+  println("all joins in a loop")
+  joinTypes foreach { joinType =>
+    println(s"${joinType.toUpperCase()} JOIN")
+    df_asPerson.join(right = df_asProfile, usingColumns = Seq("personid"), joinType = joinType)
+      .orderBy("personid")
+      .show()
+  }
+  println(
+    """
+      |Till 1.x  cross join is :  df_asPerson.join(df_asProfile)
+      |
+      | Explicit Cross Join in 2.x :
+      | http://blog.madhukaraphatak.com/migrating-to-spark-two-part-4/
+      | Cartesian joins are very expensive without an extra filter that can be pushed down.
+      |
+      | cross join or cartesian product
+      |
+      |
+    """.stripMargin)
+
+  val crossJoinDf = df_asPerson.crossJoin(right = df_asProfile)
+  crossJoinDf.show(200, false)
+  println(crossJoinDf.explain())
+  println(crossJoinDf.count)
+
+  println("createOrReplaceTempView example ")
+  println(
+    """
+      |Creates a local temporary view using the given name. The lifetime of this
+      |   temporary view is tied to the [[SparkSession]] that was used to create this Dataset.
+    """.stripMargin)
+
+
+
+
+  df_asPerson.createOrReplaceTempView("dfperson");
+  df_asProfile.createOrReplaceTempView("dfprofile")
+  val sql =
+    s"""
+       |SELECT dfperson.name
+       |, dfperson.age
+       |, dfprofile.profileDescription
+       |  FROM  dfperson JOIN  dfprofile
+       | ON dfperson.personid == dfprofile.personid
+    """.stripMargin
+  println(s"createOrReplaceTempView  sql $sql")
+  val sqldf = spark.sql(sql)
+  sqldf.show
+
+
+  println(
+    """
+      |
+      |**** EXCEPT DEMO ***
+      |
+  """.stripMargin)
+  println(" df_asPerson.except(df_asProfile) Except demo")
+  df_asPerson.except(df_asProfile).show
+
+
+  println(" df_asProfile.except(df_asPerson) Except demo")
+  df_asProfile.except(df_asPerson).show
+}
+=================================================================
+import org.apache.spark._
+import org.apache.spark.sql._
+import org.apache.spark.sql.expressions._
+import org.apache.spark.sql.functions._
+
+object SparkSandbox extends App {
+
+  case class Row(id: Int, value: String)
+
+  private[this] implicit val spark = SparkSession.builder().master("local[*]").getOrCreate()
+  import spark.implicits._
+  spark.sparkContext.setLogLevel("ERROR")
+
+  val r1 = Seq(Row(1, "A1"), Row(2, "A2"), Row(3, "A3"), Row(4, "A4")).toDS()
+  val r2 = Seq(Row(3, "A3"), Row(4, "A4"), Row(4, "A4_1"), Row(5, "A5"), Row(6, "A6")).toDS()
+
+  val joinTypes = Seq("inner", "outer", "full", "full_outer", "left", "left_outer", "right", "right_outer", "left_semi", "left_anti")
+
+  joinTypes foreach {joinType =>
+    println(s"${joinType.toUpperCase()} JOIN")
+    r1.join(right = r2, usingColumns = Seq("id"), joinType = joinType).orderBy("id").show()
+  }
+}
+======================================================================
+case class Match(matchId: Int, player1: String, player2: String)
+case class Player(name: String, birthYear: Int)
+
+val matches = Seq(
+  Match(1, "John Wayne", "John Doe"),
+  Match(2, "Ive Fish", "San Simon")
+)
+
+val players = Seq(
+  Player("John Wayne", 1986),
+  Player("Ive Fish", 1990),
+  Player("San Simon", 1974),
+  Player("John Doe", 1995)
+)
+
+val matchesDf = sqlContext.createDataFrame(matches)
+val playersDf = sqlContext.createDataFrame(players)
+
+matchesDf.registerTempTable("matches")
+playersDf.registerTempTable("players")
+
+sqlContext.sql(
+  "select matchId, player1, player2, p1.birthYear, p2.birthYear, abs(p1.birthYear-p2.birthYear) " +
+  "from matches m inner join  players p1 inner join players p2 " +
+  "where m.player1 = p1.name and m.player2 = p2.name").show()
+
++-------+----------+---------+---------+---------+---+
+|matchId|   player1|  player2|birthYear|birthYear|_c5|
++-------+----------+---------+---------+---------+---+
+|      1|John Wayne| John Doe|     1986|     1995|  9|
+|      2|  Ive Fish|San Simon|     1990|     1974| 16|
++-------+----------+---------+---------+---------+---+
+
+===========================================================
+import sqlContext.implicits._
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.abs
+
+val matches = sqlContext.sparkContext.parallelize(Row(1, "John Wayne", "John Doe"), Row(2, "Ive Fish", "San Simon")))
+
+val players = sqlContext.sparkContext.parallelize(Seq(
+  Row("John Wayne", 1986),
+  Row("Ive Fish", 1990),
+  Row("San Simon", 1974),
+  Row("John Doe", 1995)
+))
+
+val matchesDf = sqlContext.createDataFrame(matches, StructType(Seq(
+  StructField("matchId", IntegerType, nullable = false),
+  StructField("player1", StringType, nullable = false),
+  StructField("player2", StringType, nullable = false)))
+).as('matches)
+
+val playersDf = sqlContext.createDataFrame(players, StructType(Seq(
+  StructField("player", StringType, nullable = false),
+  StructField("birthYear", IntegerType, nullable = false)
+))).as('players)
+
+matchesDf
+  .join(playersDf, $"matches.player1" === $"players.player")
+  .select($"matches.matchId" as "matchId", $"matches.player1" as "player1", $"matches.player2" as "player2", $"players.birthYear" as "player1BirthYear")
+  .join(playersDf, $"player2" === $"players.player")
+  .select($"matchId" as "MatchID", $"player1" as "Player1", $"player2" as "Player2", $"player1BirthYear" as "BYear_P1", $"players.birthYear" as "BYear_P2")
+  .withColumn("Diff", abs('BYear_P2.minus('BYear_P1)))
+  .show()
+
++-------+----------+---------+--------+--------+----+
+|MatchID|   Player1|  Player2|BYear_P1|BYear_P2|Diff|
++-------+----------+---------+--------+--------+----+
+|      1|John Wayne| John Doe|    1986|    1995|   9|
+|      2|  Ive Fish|San Simon|    1990|    1974|  16|
++-------+----------+---------+--------+--------+----+

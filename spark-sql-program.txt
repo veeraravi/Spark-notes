@@ -1,0 +1,1322 @@
+Different approaches to manually create Spark DataFrames:
+toDF:
+
+import spark.implicits._
+val someDF = Seq(
+  (8, "bat"),
+  (64, "mouse"),
+  (-27, "horse")
+).toDF("number", "word")
+createDataFrame():
+------------------
+val someData = Seq(
+  Row(8, "bat"),
+  Row(64, "mouse"),
+  Row(-27, "horse")
+)
+
+val someSchema = List(
+  StructField("number", IntegerType, true),
+  StructField("word", StringType, true)
+)
+
+val someDF = spark.createDataFrame(
+  spark.sparkContext.parallelize(someData),
+  StructType(someSchema)
+)
+
+createDF():
+-----------
+val someDF = spark.createDF(
+  List(
+    (8, "bat"),
+    (64, "mouse"),
+    (-27, "horse")
+  ), List(
+    ("number", IntegerType, true),
+    ("word", StringType, true)
+  )
+)
+
+// sample data frame
+val df = Seq(
+      (1, "foo"),
+      (2, "barrio"),
+      (3, "gitten"),
+      (4, "baa")).toDF("id", "words")
+
+// dictionary Set of words to check 
+val dict = Set("foo","bar","baaad")
+
+import org.apache.spark.broadcast.Broadcast
+
+def udf_check(words: Broadcast[scala.collection.immutable.Set[String]]) = {
+  udf {(s: String) => words.value.exists(s.contains(_))}
+}
+
+df.withColumn("word_check", udf_check(sparkContext.broadcast(dict))($"words"))
+
+
+val dict_df = dict.toList.toDF("word")
+
+df
+  .join(broadcast(dict_df),$"words".contains($"word"),"left")
+  .withColumn("word_check",$"word".isNotNull)
+  .drop($"word")
+
+df.withColumn("word_check", dict.foldLeft(lit(false))((a, b) => a || locate(b, $"words") > 0)).show
+
++---+------+----------+
+| id| words|word_check|
++---+------+----------+
+|  1|   foo|      true|
+|  2|barrio|      true|
+|  3|gitten|     false|
+|  4|   baa|     false|
++---+------+----------+
+
+//Get all columns
+val columns: Array[String] = df.columns
+
+//For each column, keep the rows with 'Y'
+val seqDfs: Seq[DataFrame] = columns.map(name => df.filter(s"$name == 'Y'"))
+
+//Union all the dataframes together into one final dataframe
+val output: DataFrame = seqDfs.reduceRight(_ union _)
+===================================================================  
+Working with dates and times in Spark
+Spark supports DateType and TimestampType columns and defines a rich API of functions to make working with dates and times easy. This blog post will demonstrates how to make DataFrames with DateType / TimestampType columns and how to leverage Spark's functions for working with these columns.
+
+Creating DateType columns
+Import the java.sql.Date library to create a DataFrame with a DateType column.
+
+import java.sql.Date
+import org.apache.spark.sql.types.{DateType, IntegerType}
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Date.valueOf("2016-09-30")),
+    (2, Date.valueOf("2016-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+sourceDF.show()
+
++---------+----------+
+|person_id|birth_date|
++---------+----------+
+|        1|2016-09-30|
+|        2|2016-12-14|
++---------+----------+
+
+sourceDF.printSchema()
+
+root
+ |-- person_id: integer (nullable = true)
+ |-- birth_date: date (nullable = true)
+The cast() method can create a DateType column by converting a StringType column into a date.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, "2013-01-30"),
+    (2, "2012-01-01")
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", StringType, true)
+  )
+).withColumn(
+  "birth_date",
+  col("birth_date").cast("date")
+)
+sourceDF.show()
+
++---------+----------+
+|person_id|birth_date|
++---------+----------+
+|        1|2013-01-30|
+|        2|2012-01-01|
++---------+----------+
+
+sourceDF.printSchema()
+
+root
+ |-- person_id: integer (nullable = true)
+ |-- birth_date: date (nullable = true)
+year(), month(), dayofmonth()
+Let's create a DataFrame with a DateType column and use built in Spark functions to extract the year, month, and day from the date.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Date.valueOf("2016-09-30")),
+    (2, Date.valueOf("2016-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "birth_year",
+  year(col("birth_date"))
+).withColumn(
+  "birth_month",
+  month(col("birth_date"))
+).withColumn(
+  "birth_day",
+  dayofmonth(col("birth_date"))
+).show()
++---------+----------+----------+-----------+---------+
+|person_id|birth_date|birth_year|birth_month|birth_day|
++---------+----------+----------+-----------+---------+
+|        1|2016-09-30|      2016|          9|       30|
+|        2|2016-12-14|      2016|         12|       14|
++---------+----------+----------+-----------+---------+
+minute(), second()
+Let's create a DataFrame with a TimestampType column and use built in Spark functions to extract the minute and second from the timestamp.
+
+import java.sql.Timestamp
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Timestamp.valueOf("2017-12-02 03:04:00")),
+    (2, Timestamp.valueOf("1999-01-01 01:45:20"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("fun_time", TimestampType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "fun_minute",
+  minute(col("fun_time"))
+).withColumn(
+  "fun_second",
+  second(col("fun_time"))
+).show()
++---------+-------------------+----------+----------+
+|person_id|           fun_time|fun_minute|fun_second|
++---------+-------------------+----------+----------+
+|        1|2017-12-02 03:04:00|         4|         0|
+|        2|1999-01-01 01:45:20|        45|        20|
++---------+-------------------+----------+----------+
+datediff()
+The datediff() and current_date() functions can be used to calculate the number of days between today and a date in a DateType column. Let's use these functions to calculate someone's age in days.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Date.valueOf("1990-09-30")),
+    (2, Date.valueOf("2001-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "age_in_days",
+  datediff(current_timestamp(), col("birth_date"))
+).show()
++---------+----------+-----------+
+|person_id|birth_date|age_in_days|
++---------+----------+-----------+
+|        1|1990-09-30|       9946|
+|        2|2001-12-14|       5853|
++---------+----------+-----------+
+date_add()
+The date_add() function can be used to add days to a date. Let's add 15 days to a date column.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Date.valueOf("1990-09-30")),
+    (2, Date.valueOf("2001-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "15_days_old",
+  date_add(col("birth_date"), 15)
+).show()
++---------+----------+-----------+
+|person_id|birth_date|15_days_old|
++---------+----------+-----------+
+|        1|1990-09-30| 1990-10-15|
+|        2|2001-12-14| 2001-12-29|
++---------+----------+-----------+
+
+
+TotalCost|BirthDate|Gender|TotalChildren|ProductCategoryName
+1000||Male|2|Technology
+2000|1957-03-06||3|Beauty
+3000|1959-03-06|Male||Car
+4000|1953-03-06|Male|2|
+5000|1957-03-06|Female|3|Beauty
+6000|1959-03-06|Male|4|Car
+7000|1957-03-06|Female|3|Beauty
+8000|1959-03-06|Male|4|Car 
+
+
+import org.apache.spark.sql.SparkSession
+
+object DataFrameFromCSVFile2 {
+
+def main(args:Array[String]):Unit= {
+
+val spark: SparkSession = SparkSession.builder()
+  .master("local[1]")
+  .appName("SparkByExample")
+  .getOrCreate()
+
+val filePath="src/main/resources/demodata.txt"
+
+val df = spark.read.options(Map("inferSchema"->"true","delimiter"->"|","header"->"true")).csv(filePath).select("Gender", "BirthDate", "TotalCost", "TotalChildren", "ProductCategoryName")
+
+val df2 = df
+  .filter("Gender is not null")
+  .filter("BirthDate is not null")
+  .filter("TotalChildren is not null")
+  .filter("ProductCategoryName is not null")
+df2.show()
+
+
+
+Working with dates and times in Spark
+Spark supports DateType and TimestampType columns and defines a rich API of functions to make working with dates and times easy. This blog post will demonstrates how to make DataFrames with DateType / TimestampType columns and how to leverage Spark’s functions for working with these columns.
+
+Creating DateType columns
+We will import the java.sql.Date library to create a DataFrame with a DateType column.
+
+import java.sql.Date
+import org.apache.spark.sql.types.{DateType, IntegerType}
+val sourceDF = spark.createDF(
+  List(
+    (1, Date.valueOf("2016-09-30")),
+    (2, Date.valueOf("2016-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+
+
+
+sourceDF.show()
++---------+----------+
+|person_id|birth_date|
++---------+----------+
+|        1|2016-09-30|
+|        2|2016-12-14|
++---------+----------+
+sourceDF.printSchema()
+root
+ |-- person_id: integer (nullable = true)
+ |-- birth_date: date (nullable = true)
+The cast() method can also create a DateType column by converting a StringType column into a date.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, "2013-01-30"),
+    (2, "2012-01-01")
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", StringType, true)
+  )
+).withColumn(
+  "birth_date",
+  col("birth_date").cast("date")
+)
+
+sourceDF.show()
++---------+----------+
+|person_id|birth_date|
++---------+----------+
+|        1|2013-01-30|
+|        2|2012-01-01|
++---------+----------+
+sourceDF.printSchema()
+root
+ |-- person_id: integer (nullable = true)
+ |-- birth_date: date (nullable = true)
+year(), month(), dayofmonth()
+Let’s create a DataFrame with a DateType column and use built in Spark functions to extract the year, month, and day from the date.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Date.valueOf("2016-09-30")),
+    (2, Date.valueOf("2016-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "birth_year",
+  year(col("birth_date"))
+).withColumn(
+  "birth_month",
+  month(col("birth_date"))
+).withColumn(
+  "birth_day",
+  dayofmonth(col("birth_date"))
+).show()
++---------+----------+----------+-----------+---------+
+|person_id|birth_date|birth_year|birth_month|birth_day|
++---------+----------+----------+-----------+---------+
+|        1|2016-09-30|      2016|          9|       30|
+|        2|2016-12-14|      2016|         12|       14|
++---------+----------+----------+-----------+---------+
+minute(), second()
+Let’s create a DataFrame with a TimestampType column and use built in Spark functions to extract the minute and second from the timestamp.
+
+val sourceDF = spark.createDF(
+  List(
+    (1, Timestamp.valueOf("2017-12-02 03:04:00")),
+    (2, Timestamp.valueOf("1999-01-01 01:45:20"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("fun_time", TimestampType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "fun_minute",
+  minute(col("fun_time"))
+).withColumn(
+  "fun_second",
+  second(col("fun_time"))
+).show()
++---------+-------------------+----------+----------+
+|person_id|           fun_time|fun_minute|fun_second|
++---------+-------------------+----------+----------+
+|        1|2017-12-02 03:04:00|         4|         0|
+|        2|1999-01-01 01:45:20|        45|        20|
++---------+-------------------+----------+----------+
+datediff()
+The datediff() and current_date() functions can be used to calculate the number of days between today and a date in a DateType column. Let’s use these functions to calculate someone’s age in days.
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
+
+val someData = Seq(
+   Row(1, Date.valueOf("1972-03-31"),Date.valueOf("2015-10-23")),
+   Row(2, Date.valueOf("1972-10-31"),Date.valueOf("2015-10-23")),
+   Row(3, Date.valueOf("1972-10-31"),Date.valueOf("2015-03-23"))
+)
+
+val someSchema = List(
+  StructField("person_id", IntegerType, true),
+  StructField("birth_date", DateType, true),
+  StructField("death_date", DateType, true)
+)
+
+val someDF = spark.createDataFrame(
+  spark.sparkContext.parallelize(someData),
+  StructType(someSchema)
+)
+/*
+val sourceDF = spark.createDataFrame(
+  List(
+    (1, Date.valueOf("1972-03-31"),Date.valueOf("2015-10-23")),
+    (2, Date.valueOf("1972-10-31"),Date.valueOf("2015-10-23")),
+    (2, Date.valueOf("1972-10-31"),Date.valueOf("2015-03-23"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+    ("death_date", DateType, true)
+  )
+)
+*/
+someDF.withColumn(
+  "age_in_days",
+  datediff(current_timestamp(), col("birth_date"))
+).show()
+
+
+someDF.withColumn(
+  "age_in_days",
+  (datediff(col("death_date"), col("birth_date"))/365).cast("int")
+).show()
++---------+----------+-----------+
+|person_id|birth_date|age_in_days|
++---------+----------+-----------+
+|        1|1990-09-30|       9946|
+|        2|2001-12-14|       5853|
++---------+----------+-----------+
+date_add()
+The date_add() function can be used to add days to a date. Let’s add 15 days to a date column.
+
+val sourceDF = spark.createDataFrame(
+  List(
+    (1, Date.valueOf("1990-09-30")),
+    (2, Date.valueOf("2001-12-14"))
+  ), List(
+    ("person_id", IntegerType, true),
+    ("birth_date", DateType, true)
+  )
+)
+
+sourceDF.withColumn(
+  "15_days_old",
+  date_add(col("birth_date"), 15)
+).show()
++---------+----------+-----------+
+|person_id|birth_date|15_days_old|
++---------+----------+-----------+
+|        1|1990-09-30| 1990-10-15|
+|        2|2001-12-14| 2001-12-29|
++---------+----------+-----------+
+Next steps
+Look at the Spark SQL functions for the full list of methods available for working with dates and times in Spark.
+
+The Spark date functions aren’t comprehensive and Java / Scala datetime libraries are notoriously difficult to work with. We should think about filling in the gaps in the native Spark datetime libraries by adding functions to spark-daria.
+
+
+
+
+
+
+==========================================================================
+case class Employee(empId:String,name:String,dept:String,sal:Double)
+
+val empRDD = sc.textFile("file:\\D:\\veeraravi\\veeraravi\\drivedata\\DataSets\\emp.txt")
+
+val splits = empRDD.map(x => x.split(","))	
+
+val empdf = splits.map(x => Employee(x(0),x(1),x(2),x(3).toDouble)).toDF
+
+
+scala> empdf.printSchema
+root
+ |-- empId: string (nullable = true)
+ |-- name: string (nullable = true)
+ |-- dept: string (nullable = true)
+ |-- sal: double (nullable = false)
+
+
+scala> empdf.registerTempTable("empTable")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> sqlContext.sql("select * from empTable where sal > 1000.00")
+res13: org.apache.spark.sql.DataFrame = [empId: string, name: string ... 2 more fields]
+
+scala> sqlContext.sql("select * from empTable where sal > 1000.00").show
+
+============================Read CSV ============================
+
+case class Patient(firstName:String,lastname:String,dob:String,state:String,citi:String,zip:long,gender:String)
+
+inputPath/patient.csv
+
+
+val patientDf = spark.read.format("csv").options("header","true").options("delimiter","|").load("/inputPath/patient.csv")
+patient.printSchema
+
+
+patient.write.parquet("")
+
+parquetDf.filter(col("city")==="PA")
+
+val patientVisit =spark.read.format("csv").options("header","true").options("delimiter","|").load("/inputPath/patientvisits.csv")
+
+case class(fn,ln,hospitaNmae,dateVisit)
+
+val joinedDf = patientDf.join(patientVisitDf, patientDf("firstName")==patientVisit("fn")and patientDf("LastName")==patientVisit("ln"), "left outer")
+
+patientDf.registerTempView("patientTable")
+
+val cityWiseCount = spark.sql("select citi,count(*) from patientTable group by citi")
+
+broadcast varible
+
+==============================================
+object BasicQueryExample {
+ 
+  val sc = SparkCommon.sparkContext
+  val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+ 
+  def main(args: Array[String]) {
+ 
+    import sqlContext.implicits._
+ 
+    val input = sqlContext.read.json("file:\\D:\\veeraravi\\veeraravi\\drivedata\\DataSets\\cars.json")
+ 
+    input.registerTempTable("Cars1")
+ 
+ 
+    val result = sqlContext.sql("SELECT * FROM Cars1")
+ 
+    result.show()
+ }
+ 
+}
+ 
+case class Cars1(name: String)
+
+=============================
+val df = sc.parallelize(Seq((1,"Emailab"), (2,"Phoneab"), (3, "Faxab"),(4,"Mail"),(5,"Other"),(6,"MSL12"),(7,"MSL"),(8,"HCP"),(9,"HCP12"))).toDF("id","name")
+
+val df1 = df.filter(not(df("name").rlike("MSL"))&&not(df("name").rlike("HCP"))) 
+
+df.filter(not(
+    substring(col("c2"), 0, 3).isin("MSL", "HCP"))
+    ).show
+	
+Using rlike in this way will also filter string like "OtherMSL", even if it does not start with the pattern you said. Try to use rlike("^MSL") and rlike("^HCP") instead. Alternately you can also use the .startsWith("MSL") function	
+
+==========example 3=============
+
+val df2 = sqlContext.load("com.databricks.spark.csv", Map("path" -> "file:///Users/vshukla/projects/spark/sql/core/src/test/resources/cars.csv", "header" -> "true"))
+df2.printSchema()
+val df4 = df2.withColumn("year2", 'year.cast("Int")).select('year2 as 'year, 'make, 'model, 'comment)
+df4.printSchema
+
+============Example 4 =============
+
+import sqlContext.implicits._
+val df = Seq(("David", 25, ""), ("Jean", 20, "")).toDF("Name", "age", "uid")
+df.withColumn("uid", testUdf(df("Name")))
+
+
+import org.apache.spark.sql.functions.udf
+def testUdf = udf((value: String) => {
+    if(value.equalsIgnoreCase("David")) "uip154"
+    else if(value.equalsIgnoreCase("Jean")) "uaz214"
+    else ""
+  })
+  
+=====================Example 5 ==============
+
+I'm trying to filter the date range from the following data using Data bricks, which returns null as response. My csv data looks like:
+
+ID, Desc, Week_Ending_Date
+100, AAA, 13-06-2015
+101, BBB, 11-07-2015
+102, CCC, 15-08-2015
+103, DDD, 05-09-2015
+100, AAA, 29-08-2015
+100, AAA, 22-08-2015
+My query is:
+
+df.select(df("ID"), date_format(df("Week_Ending_Date"), "yyyy-MM-dd"))
+.filter(date_format(df("Week_Ending_Date"), "yyyy-MM-  dd").between("2015-07-05", "2015-09-02"))
+Any help is much appreciated.
+----answer:
+
+import java.text.SimpleDateFormat
+
+val format = new SimpleDateFormat("dd-MM-yyyy")
+val data = sc.parallelize(
+  List((100, "AAA", "13-06-2015"), (101, "BBB", "11-07-2015"), (102, "CCC", "15-08-2015"), (103, "DDD", "05-09-2015"), (100, "AAA", "29-08-2015"), (100, "AAA", "22-08-2015")).toSeq).map {
+  r =>
+    val date: java.sql.Date = new java.sql.Date(format.parse(r._3).getTime);
+    (r._1, r._2, date)
+}.toDF("ID", "Desc", "Week_Ending_Date")
+
+data.show
+
+//+---+----+----------------+
+//| ID|Desc|Week_Ending_Date|
+//+---+----+----------------+
+//|100| AAA|      2015-06-13|
+//|101| BBB|      2015-07-11|
+//|102| CCC|      2015-08-15|
+//|103| DDD|      2015-09-05|
+//|100| AAA|      2015-08-29|
+//|100| AAA|      2015-08-22|
+//+---+----+----------------+
+
+val filteredData = data.select(data("ID"), date_format(data("Week_Ending_Date"), "yyyy-MM-dd").alias("date")).filter($"date".between("2015-07-05", "2015-09-02"))
+
+//+---+----------+
+//| ID|      date|
+//+---+----------+
+//|101|2015-07-11|
+//|102|2015-08-15|
+//|100|2015-08-29|
+//|100|2015-08-22|
+//+---+----------+
+
+
+var df = sqlContext.read.format("com.databricks.spark.csv") .option("header", "true") .option("inferSchema", "true") .load("test.csv");
+============================================================
+For lower than :
+
+// filter data where the date is lesser than 2015-03-14
+data.filter(data("date").lt(lit("2015-03-14")))      
+For greater than :
+
+// filter data where the date is greater than 2015-03-14
+data.filter(data("date").gt(lit("2015-03-14"))) 
+If your DataFrame date column is of type StringType, you can convert it using the to_date function :
+
+// filter data where the date is greater than 2015-03-14
+data.filter(to_date(data("date")).gt(lit("2015-03-14"))) 
+You can also filter according to a year using the year function :
+
+// filter data where year is greater or equal to 2016
+data.filter(year($"date").geq(lit(2016))) 
+
+df.select(df("ID"), date_format(df("Week_Ending_Date"), "yyyy-MM-dd")) .filter(date_format(df("Week_Ending_Date"), "yyyy-MM-dd").between("2015-07-05", "2015-09-02"))
+
+
+
+Reading	
+	=======
+	Using Scala
+	-----------
+	val rdd = sc.textFile(<Path>)
+	val parquet_df = sqlContext.read.parquet("<PATH>")
+	
+	val orc_df = sqlContext.read.orc(<PATH>)
+	
+	import com.databricks.spark.avro._;
+	
+	val avro_Df = sqlContext.read.avro(<PATH>);
+	
+	val json_df = sqlContext.read.json("<PATH>")
+	
+	val json_df = sqlContext.read.format("json").load("<PATH>")
+	
+	Using Python
+	-------------
+	rdd = sc.TextFile(<Path>)
+	parquet_df = sqlContext.read.parquet("<PATH>")
+	orc_df = hiveContext.read.orc(<PATH>)
+	--packages com.databricks:spark-avro_2.10:2.0.1
+	avro_df = spark.read.format("com.databricks.spark.avro").load("<PATH>")
+	json_df = sqlContext.read.json("<PATH>"
+	json_df = sqlContext.read.load("<PATH>", format="json")
+	
+	
+	Writing
+	=======
+	
+	Using Scala
+	-----------
+	rdd.saveAsTextFile(<Path>)
+	
+	rdd.saveAsTextFile(<Path>, org.apache.hadoop.io.compress.GzipCodec) // BZip2Codec or GZipCodec or SnappyCodec
+	
+	parquet_df.write.format("parquet").save("<PATH>") # Default: Snappy
+	
+	sqlContext.setConf("spark.sql.parquet.compression.codec","gzip") // none,gzip,lzo,snappy,uncompressed
+	
+	orc_df.write.mode(SaveMode.Overwrite).format("orc").save("<PATH>")
+	
+	sqlContext.setConf("spark.sql.avro.compression.codec","snappy") //use snappy, deflate, uncompressed;
+	
+	dataFrame.write.avro(<path to location>);
+	
+	json_df.write.mode('append').json("<PATH>")
+	
+	json_df.write.format("org.apache.spark.sql.json").mode(SaveMode.Append).save(<PATH>)
+	
+	Using Python
+	------------
+	rdd.saveAsTextFile(<Path>)
+	rdd.saveAsTextFile(<Path>, org.apache.hadoop.io.compress.GzipCodec) # BZip2Codec or GZipCodec or SnappyCodec
+	parquet_df.write.save("<PATH>", format="parquet")
+	parquet_df.write.format("parquet").save("<PATH>") # Default: Snappy
+	parquet_df.write.option("compression", "gzip").mode("overwrite").save("<PATH>") # none,gzip,lzo,snappy,uncompressed
+	orc_df.write.format("orc").save("<PATH>")
+	orc_df.write.format("orc").option("compression", "zlib").mode("overwrite").save("<PATH>") # uncompressed, lzo, snappy, zlib, none
+	sqlContext.setConf("spark.sql.avro.compression.codec", "deflate") # uncompressed, snappy and deflate
+	avro_df.write.format("com.databricks.spark.avro").mode("overwrite").save("<PATH>")
+	json_df.write.mode('append').json("<PATH>")
+	json_df.write.format("org.apache.spark.sql.json").mode("append").save(<PATH>)
+
+	
+	
+=======================TEXT FILE===================
+
+READ
+
+sparkContext.textFile(<path to file>);
+
+WRITE
+
+sparkContext.saveAsTextFile(<path to file>,classOf[compressionCodecClass]);
+//use any codec here org.apache.hadoop.io.compress.(BZip2Codec or GZipCodec or SnappyCodec)
+
+========================SEQUENCE FILE================
+
+READ
+
+sparkContext.sequenceFile(<path location>,classOf[<class name>],classOf[<compressionCodecClass >]);
+//read the head of sequence file to understand what two class names need to be used here
+
+WRITE
+
+rdd.saveAsSequenceFile(<path location>, Some(classOf[compressionCodecClass]))
+//use any codec here (BZip2Codec,GZipCodec,SnappyCodec)
+//here rdd is MapPartitionRDD and not the regular pair RDD.
+
+==========================PARQUET FILE===============
+
+READ
+
+//use data frame to load the file.
+sqlContext.read.parquet(<path to location>); //this results in a data frame object.
+
+WRITE
+
+sqlContext.setConf("spark.sql.parquet.compression.codec","gzip") //use gzip, snappy, lzo or uncompressed here
+dataFrame.write.parquet(<path to location>);
+
+===========================ORC FILE===================
+
+READ
+
+sqlContext.read.orc(<path to location>); //this results in a dataframe
+
+WRITE
+
+df.write.mode(SaveMode.Overwrite).format("orc") .save(<path to location>)
+
+============================AVRO FILE=====================
+READ
+
+import com.databricks.spark.avro._;
+sqlContext.read.avro(<path to location>); // this results in a data frame object
+
+WRITE
+
+sqlContext.setConf("spark.sql.avro.compression.codec","snappy") //use snappy, deflate, uncompressed;
+dataFrame.write.avro(<path to location>);
+
+=========================JSON FILE=================================
+
+READ
+
+sqlContext.read.json();
+
+WRITE
+
+dataFrame.toJSON().saveAsTextFile(<path to location>,classOf[Compression Codec])
+==================JSON===============
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SQLContext
+
+object FromJson {
+  
+  def main(args: Array[String]): Unit = {
+    val conf = new SparkConf().setAppName("SparkSQLBasics")
+    val sc = new SparkContext(conf)
+    val sqlContext = new SQLContext(sc)
+    
+    val input = sqlContext.read.json("/spark_learning/testweet.json")
+    
+    input.registerTempTable("tweets")
+    val texts = sqlContext.sql("select text from tweets")
+    
+    
+    //udf register
+    sqlContext.udf.register("strLen",(x:String)=>{findLength(x)})
+    texts.foreach(println)
+  }
+  
+  def findLength(x:String) = {
+    x.length
+  }
+}
+
+===================================SAVE INTO HIVE=====================
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.hive.HiveContext
+
+object HiveTest {
+  
+  def main(args: Array[String]): Unit = {
+    val conf = new SparkConf().setAppName("SparkSQLBasics")
+    val sc = new SparkContext(conf)
+    
+    val sqlContext = new HiveContext(sc)
+    
+    val input = sqlContext.read.json("/spark_learning/testweet.json")
+    input.registerTempTable("tweets")
+    val texts = sqlContext.sql("select text from tweets")
+    texts.saveAsTable("texts")
+  }
+}
+============================================================
+
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions.udf
+
+
+
+object dataframes {
+
+		println("Welcome to the Scala worksheet")
+	  val conf = new SparkConf().setAppName("dataframe-test").setMaster("spark://Vishnus-MacBook-Pro.local:7077")
+		val sc = new SparkContext(conf)
+		val sqlContext = new SQLContext(sc)
+		
+		import sqlContext.implicits._
+		
+		case class Auctions(aucid:String, bid:Float,bidtime:Float,bidder:String,bidrate:Int,openbid:Float, price:Float,itemtype:String,dtl:Int)
+		
+		val auctionRDD = sc.textFile("/user/vishnu/mapr/dev360/auctiondata.csv").map(_.split(","))
+		val auctions = auctionRDD.map(a=>Auctions(a(0),a(1).toFloat,a(2).toFloat,a(3),a(4).toInt,a(5).toFloat,a(6).toFloat,a(7),a(8).toInt))
+		val auctionsDF = auctions.toDF()
+		auctionsDF.registerTempTable("auctionsDF")
+		
+		//auctionsDF.groupBy("itemtype", "aucid").count.agg(min("count"), avg("count"), max("count")).show
+		
+		auctionsDF.filter(auctionsDF("price")>150).show
+		
+		//second course
+		val sfpd = sc.textFile("/user/vishnu/mapr/dev361/sfpd.csv").map(_.split(","))
+		case class Incidents(incidentnum:String, category:String, description:String, dayofweek:String, date:String, time:String, pddistrict:String, resolution:String, address:String, X:Float, Y:Float, pdid:String)
+		val sfpdCase = sfpd.map(x=>Incidents(x(0),x(1),x(2),x(3),x(4),x(5),x(6),x(7),x(8),x(9).toFloat,x(10).toFloat,x(11)))
+		val sfpdDF = sfpdCase.toDF
+		sfpdDF.registerTempTable("sfpd")
+		
+		val testsch = StructType(Array(StructField("IncNum",StringType,true),StructField("Date",StringType,true),
+		StructField("District",StringType,true)))
+		
+		
+		//depricated
+		//val sfpdjson = sqlContext.load("/user/vishnu/mapr/dev361/sfpd.json","json")
+		
+		//correct way from spark 1.4
+		val sfpdjson = sqlContext.read.format("json").load("/user/vishnu/mapr/dev361/sfpd.json")
+		
+		sfpdDF.groupBy("pddistrict").count.sort($"count".desc).show(5)
+		sfpdDF.groupBy("resolution").count.sort($"count".desc).show(10)
+		 val top10ResSQl = sqlContext.sql("SELECT resolution,count(incidentnum) as count from sfpd group by resolution order by count desc limit 10")
+		
+		//save
+		//depricated
+		top10ResSQl.toJSON.saveAsTextFile("/user/vishnu/mapr/dev361/top10Res.json")
+		
+		//correct way from spark 1.4
+		top10ResSQl.write.format("json").mode("overwrite").save("/user/vishnu/mapr/dev361/top10Res.json")
+		
+		//creating udf (scala)
+		def getStr = udf((s:String)=> {
+     val lastS = s.substring(s.lastIndexOf('/')+1)
+     lastS
+     })
+     
+     
+     //inline usage of udf
+     val yy = sfpdDF.groupBy(getStr(sfpdDF("date"))).count.show
+     
+     
+     //define function and register it as udf
+     def getStr(s:String) = {
+     	val strAfter = s.substring(s.lastIndexOf('/')+1)
+     	strAfter
+     }
+     
+     //register as udf, we can use getStr in sql quries only if we regiter
+     sqlContext.udf.register("getStr",getStr _)
+     
+     //using getStr in sql
+     sqlContext.sql("SELECT getStr(date),count(incidentnum) as count from sfpd GROUP BY getStr(date) ORDER BY count DESC limit 5")
+     
+}
+
+============================================================================================
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions._
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SQLContext
+
+/**
+ * Data from https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data
+ */
+object DataframeExample {
+
+  def main(args: Array[String]): Unit = {
+    val conf = new SparkConf().setAppName("HouseData")
+    val sc = new SparkContext(conf)
+    val sqlContext = new SQLContext(sc)
+
+    import sqlContext.implicits._
+
+    val peopleRDD = sc.parallelize(List(("john", 40), ("tom", 25), ("adam", 29)))
+    val peopleDF = peopleRDD.toDF("name", "age")
+
+    val houseData = sc.textFile("/spark_learning/housing.data.txt").map(x => {
+      val parts = x.trim.split("[ ]+")
+      val crime = if (parts(0).trim.equals("")) -1 else parts(0).toDouble
+      val zone = if (parts(1).trim.equals("")) -1 else parts(1).toDouble
+      val rooms = if (parts(5).trim.equals("")) -1 else parts(5).toDouble
+      val age = if (parts(6).trim.equals("")) -1 else parts(6).toDouble
+      HouseInfo(crime, zone, rooms, age)
+    })
+
+    val houseDf = houseData.toDF
+
+    houseDf.show
+
+    //aggregation functions
+    houseDf.agg(avg("age")).show
+    /**
+     * +-----------------+
+     * |         avg(age)|
+     * +-----------------+
+     * |68.57490118577074|
+     * +-----------------+
+     */
+    houseDf.agg(avg("age"), max("crime")).show
+    houseDf.agg(Map("age" -> "avg", "crime" -> "max")).show
+    /**
+     * +-----------------+----------+
+     * |         avg(age)|max(crime)|
+     * +-----------------+----------+
+     * |68.57490118577074|   88.9762|
+     * +-----------------+----------+
+     */
+
+    //filter
+    houseDf.filter("age > 50").show
+
+    //randomsplit 
+    val splits = houseDf.randomSplit(Array(0.5, 0.5), 0l)
+    val part1 = splits(0)
+    val part2 = splits(1)
+
+    //joins
+    part1.join(part2).show
+    part1.join(part2, "zone")
+    part1.join(part2, part1("zone") === part2("zone"))
+    part1.join(part2, part1("zone") <=> part2("zone")) //safe for null values
+    part1.join(part2, part1("zone") !== part2("zone"))
+    //http://spark.apache.org/docs/latest/api/scala/#org.apache.spark.sql.Column for info on conditions 
+
+    //groupBy
+    houseDf.groupBy("zone").agg(avg("age")).show
+    houseDf.groupBy(houseDf("zone")).agg(avg("age")).show
+
+    //union
+    part1.unionAll(part2)
+
+    //select
+    houseDf.select(houseDf("age")).show
+    houseDf.select("age").show
+    houseDf.selectExpr("age>60").show(5)
+    /**
+     *
+     * +----------+
+     * |(age > 60)|
+     * +----------+
+     * |      true|
+     * |      true|
+     * |      true|
+     * |     false|
+     * |     false|
+     * +----------+
+     */
+
+    //sort,order
+    houseDf.sort("age")
+    houseDf.sort(desc("age"))
+    houseDf.sort($"age".desc, $"rooms".asc).show
+
+    houseDf.orderBy($"age".desc).show
+    houseDf.orderBy($"age").show
+    houseDf.orderBy("age")
+    houseDf.orderBy(desc("age"))
+    houseDf.orderBy(houseDf("age").desc).show
+
+    houseDf.toJSON.take(1)
+    //res164: Array[String] = Array({"crime":0.00632,"zone":18.0,"rooms":6.575,"age":65.2})
+
+  }
+
+  case class HouseInfo(crime: Double, zone: Double, rooms: Double, age: Double)
+}
+
+=======================================================================================
+// Create the case classes for our domain
+case class Department(id: String, name: String)
+case class Employee(firstName: String, lastName: String, email: String, salary: Int)
+case class DepartmentWithEmployees(department: Department, employees: Seq[Employee])
+
+// Create the Departments
+val department1 = new Department("123456", "Computer Science")
+val department2 = new Department("789012", "Mechanical Engineering")
+val department3 = new Department("345678", "Theater and Drama")
+val department4 = new Department("901234", "Indoor Recreation")
+
+// Create the Employees
+val employee1 = new Employee("michael", "armbrust", "no-reply@berkeley.edu", 100000)
+val employee2 = new Employee("xiangrui", "meng", "no-reply@stanford.edu", 120000)
+val employee3 = new Employee("matei", null, "no-reply@waterloo.edu", 140000)
+val employee4 = new Employee(null, "wendell", "no-reply@princeton.edu", 160000)
+
+// Create the DepartmentWithEmployees instances from Departments and Employees
+val departmentWithEmployees1 = new DepartmentWithEmployees(department1, Seq(employee1, employee2))
+val departmentWithEmployees2 = new DepartmentWithEmployees(department2, Seq(employee3, employee4))
+val departmentWithEmployees3 = new DepartmentWithEmployees(department3, Seq(employee1, employee4))
+val departmentWithEmployees4 = new DepartmentWithEmployees(department4, Seq(employee2, employee3))
+
+
+val departmentsWithEmployeesSeq1 = Seq(departmentWithEmployees1, departmentWithEmployees2)
+val df1 = departmentsWithEmployeesSeq1.toDF()
+display(df1)
+
+val departmentsWithEmployeesSeq2 = Seq(departmentWithEmployees3, departmentWithEmployees4)
+val df2 = departmentsWithEmployeesSeq2.toDF()
+display(df2)
+
+
+val unionDF = df1.unionAll(df2)
+display(unionDF)
+
+
+// Remove the file if it exists
+dbutils.fs.rm("/tmp/databricks-df-example.parquet", true)
+unionDF.write.parquet("/tmp/databricks-df-example.parquet")
+
+
+val parquetDF = sqlContext.read.parquet("/tmp/databricks-df-example.parquet")
+
+val explodeDF = parquetDF.explode($"employees") {
+  case Row(employee: Seq[Row]) => employee.map{ employee =>
+    val firstName = employee(0).asInstanceOf[String]
+    val lastName = employee(1).asInstanceOf[String]
+    val email = employee(2).asInstanceOf[String]
+    val salary = employee(3).asInstanceOf[Int]
+    Employee(firstName, lastName, email, salary)
+  }
+}.cache()
+display(explodeDF)
+
+Use ``filter()`` to return only the rows that match the given predicate.
+
+
+val filterDF = explodeDF
+  .filter($"firstName" === "xiangrui" || $"firstName" === "michael")
+  .sort($"lastName".asc)
+display(filterDF)
+The ``where()`` clause is equivalent to ``filter()``.
+
+
+val whereDF = explodeDF.where(($"firstName" === "xiangrui") || ($"firstName" === "michael")).sort($"lastName".asc)
+display(whereDF)
+Replace ``null`` values with ``–`` using DataFrame Na functions.
+
+
+val naFunctions = explodeDF.na
+val nonNullDF = naFunctions.fill("--")
+display(nonNullDF)
+Retrieve only rows with missing firstName or lastName.
+
+
+val filterNonNullDF = nonNullDF.filter($"firstName" === "" || $"lastName" === "").sort($"email".asc)
+display(filterNonNullDF)
+Example aggregations using ``agg()`` and ``countDistinct()``.
+
+
+import org.apache.spark.sql.functions._
+
+// Find the distinct (firstName, lastName) combinations
+val countDistinctDF = nonNullDF.select($"firstName", $"lastName")
+  .groupBy($"firstName", $"lastName")
+  .agg(countDistinct($"firstName") as "distinct_first_names")
+display(countDistinctDF)
+Compare the DataFrame and SQL Query Physical Plans (Hint: They should be the same.)
+
+
+countDistinctDF.explain()
+
+// register the DataFrame as a temp table so that we can query it using SQL
+nonNullDF.registerTempTable("databricks_df_example")
+
+// Perform the same query as the DataFrame above and return ``explain``
+sqlContext.sql("""
+SELECT firstName, lastName, count(distinct firstName) as distinct_first_names
+FROM databricks_df_example
+GROUP BY firstName, lastName
+""").explain
+
+// Sum up all the salaries
+val salarySumDF = nonNullDF.agg("salary" -> "sum")
+display(salarySumDF)
+Print the summary statistics for the salaries.
+
+
+nonNullDF.describe("salary").show()
+Flattening
+If your data has several levels of nesting, here is a helper function to flatten your DataFrame to make it easier to work with.
+
+
+val veryNestedDF = Seq(("1", (2, (3, 4)))).toDF()
+
+import org.apache.spark.sql._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+
+implicit class DataFrameFlattener(df: DataFrame) {
+  def flattenSchema: DataFrame = {
+    df.select(flatten(Nil, df.schema): _*)
+  }
+
+  protected def flatten(path: Seq[String], schema: DataType): Seq[Column] = schema match {
+    case s: StructType => s.fields.flatMap(f => flatten(path :+ f.name, f.dataType))
+    case other => col(path.map(n => s"`$n`").mkString(".")).as(path.mkString(".")) :: Nil
+  }
+}
+
+display(veryNestedDF)
+
+display(veryNestedDF.flattenSchema)
+Cleanup: Remove the parquet file.
+
+
+dbutils.fs.rm("/tmp/databricks-df-example.parquet", true)
+DataFrame FAQs
+This FAQ contains common use cases and example usage using the available APIs.
+
+Q: How can I get better performance with DataFrame UDFs? A: If the functionality exists in the available built-in functions, using these will perform better. Example usage below.
+
+We use the built-in functions and the withColumn() API to add new columns. We could have also used withColumnRenamed() to replace an existing column after the transformation. Note: Import the libraries in the first cell
+
+
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+import org.apache.spark.sql._
+import org.apache.hadoop.io.LongWritable
+import org.apache.hadoop.io.Text
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
+
+// Build an example DataFrame dataset to work with.
+dbutils.fs.rm("/tmp/dataframe_sample.csv", true)
+dbutils.fs.put("/tmp/dataframe_sample.csv", """
+id|end_date|start_date|location
+1|2015-10-14 00:00:00|2015-09-14 00:00:00|CA-SF
+2|2015-10-15 01:00:20|2015-08-14 00:00:00|CA-SD
+3|2015-10-16 02:30:00|2015-01-14 00:00:00|NY-NY
+4|2015-10-17 03:00:20|2015-02-14 00:00:00|NY-NY
+5|2015-10-18 04:30:00|2014-04-14 00:00:00|CA-LA
+""", true)
+
+val conf = new Configuration
+conf.set("textinputformat.record.delimiter", "\n")
+val rdd = sc.newAPIHadoopFile("/tmp/dataframe_sample.csv", classOf[TextInputFormat], classOf[LongWritable], classOf[Text], conf).map(_._2.toString).filter(_.nonEmpty)
+
+val header = rdd.first()
+// Parse the header line
+val rdd_noheader = rdd.filter(x => !x.contains("id"))
+// Convert the RDD[String] to an RDD[Rows]. Create an array using the delimiter and use Row.fromSeq()
+val row_rdd = rdd_noheader.map(x => x.split('|')).map(x => Row.fromSeq(x))
+
+val df_schema =
+  StructType(
+    header.split('|').map(fieldName => StructField(fieldName, StringType, true)))
+
+var df = sqlContext.createDataFrame(row_rdd, df_schema)
+df.printSchema
+
+// Instead of registering a UDF, call the builtin functions to perform operations on the columns.
+// This will provide a performance improvement as the builtins compile and run in the platform's JVM.
+
+// Convert to a Date type
+val timestamp2datetype: (Column) => Column = (x) => { to_date(x) }
+df = df.withColumn("date", timestamp2datetype(col("end_date")))
+
+// Parse out the date only
+val timestamp2date: (Column) => Column = (x) => { regexp_replace(x," (\\d+)[:](\\d+)[:](\\d+).*$", "") }
+df = df.withColumn("date_only", timestamp2date(col("end_date")))
+
+// Split a string and index a field
+val parse_city: (Column) => Column = (x) => { split(x, "-")(1) }
+df = df.withColumn("city", parse_city(col("location")))
+
+// Perform a date diff function
+val dateDiff: (Column, Column) => Column = (x, y) => { datediff(to_date(y), to_date(x)) }
+df = df.withColumn("date_diff", dateDiff(col("start_date"), col("end_date")))
+
+df.registerTempTable("sample_df")
+display(sql("select * from sample_df"))
+Q: I want to convert the DataFrame back to json strings to send
+back to Kafka.
+A: There is an underlying toJSON() function that returns an
+RDD of json strings using the column names and schema to produce the json records.
+
+val rdd_json = df.toJSON
+rdd_json.take(2).foreach(println)
+Q: My UDF takes a parameter including the column to operate on.
+How do I pass this parameter?
+A: There is a function available called lit() that creates a
+static column.
+
+val add_n = udf((x: Integer, y: Integer) => x + y)
+
+// We register a UDF that adds a column to the DataFrame, and we cast the id column to an Integer type.
+df = df.withColumn("id_offset", add_n(lit(1000), col("id").cast("int")))
+display(df)
+
+val last_n_days = udf((x: Integer, y: Integer) => {
+  if (x < y) true else false
+})
+
+//last_n_days = udf(lambda x, y: True if x < y else False, BooleanType())
+
+val df_filtered = df.filter(last_n_days(col("date_diff"), lit(90)))
+display(df_filtered)
+Q: I have a table in the hive metastore and I’d like to access to table as a DataFrame. What’s the best way to define this? A: There’s multiple ways to define a DataFrame from a registered table. Syntax show below. Call table(tableName) or select and filter specific columns using an SQL query.
+
+
+// Both return DataFrame types
+val df_1 = table("sample_df")
+val df_2 = sqlContext.sql("select * from sample_df")
+Q: I’d like to clear all the cached tables on the current cluster. A: There’s an API available to do this at the global or per table level.
+
+
+sqlContext.clearCache()
+sqlContext.cacheTable("sample_df")
+sqlContext.uncacheTable("sample_df")
+Q: I’d like to compute aggregates on columns. What’s the best way
+to do this?
+A: There’s a new API available named agg(*exprs) that takes a
+list of column names and expressions for the type of aggregation you’d like to compute. You can leverage the built-in functions mentioned above as part of the expressions for each column.
+
+// Provide the min, count, and avg and groupBy the location column. Diplay the results
+var agg_df = df.groupBy("location").agg(min("id"), count("id"), avg("date_diff"))
+display(agg_df)
+Q: I’d like to write out the DataFrames to Parquet, but would like to partition on a particular column. A: You can use the following APIs to accomplish this. Ensure the code does not create a large number of partitioned columns with the datasets otherwise the overhead of the metadata can cause significant slow downs. If there is a SQL table back by this directory, users will need to call refresh table _tableName_ to update the metadata prior to the query.
+
+
+df = df.withColumn("end_month", month(col("end_date")))
+df = df.withColumn("end_year", year(col("end_date")))
+dbutils.fs.rm("/tmp/sample_table", true)
+df.write.partitionBy("end_year", "end_month").parquet("/tmp/sample_table")
+display(dbutils.fs.ls("/tmp/sample_table"))
+Q: How do I properly handle cases where I want to filter out NULL
+data?
+A: You can use filter() and provide similar syntax as you would
+with a SQL query.
+
+val null_item_schema = StructType(Array(StructField("col1", StringType, true),
+                               StructField("col2", IntegerType, true)))
+
+val null_dataset = sc.parallelize(Array(("test", 1 ), (null, 2))).map(x => Row.fromTuple(x))
+val null_df = sqlContext.createDataFrame(null_dataset, null_item_schema)
+display(null_df.filter("col1 IS NOT NULL"))
+
+Q: How do I infer the schema using the spark-csv or spark-avro libraries? A: Documented on the GitHub projects spark-csv, there is an inferSchema option flag. Providing a header would allow you to name the columns appropriately.
+
+
+val adult_df = sqlContext.read.
+    format("com.databricks.spark.csv").
+    option("header", "false").
+    option("inferSchema", "true").load("dbfs:/databricks-datasets/adult/adult.data")
+adult_df.printSchema()
+Q: You have a delimited string dataset that you want to convert to their datatypes. How would you accomplish this? A: Use the RDD APIs to filter out the malformed rows and map the values to the appropriate types.
