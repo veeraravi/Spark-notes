@@ -1,0 +1,99 @@
+ORC:
+------------------
+from facebook (RC)
+--columner oriented storage format
+--primarly designed to limitions of other hive fle formats
+--it has improve performance while reading,writing and processing data because vectorized ORC reader.(what ever the indexes maintained by ORC, highly efficincy read by hive)
+
+Adv:
+single file as the output of each task which reduces the na
+--light weight indexes stores within file (vectorized ORC reader u make use advantage of this)
+--concurrent file read
+--splitable files.
+
+query optimization
+min and max bloomfilter partitions wise
+more predicate push down than parquet
+ACID support
+compression efficient than paquet
+
+-----------------------------------------------
+Parquet:
+google dramel
+--columner oriented storage format
+--it has capability to store nested data structure when has more hirache/tree flattened column oriented fashion columner storage
+--query optimization
+
+predicate pushdown efficiency:
+when we have hue data, we have written filter/conditions our opt engine take advantage push calcultion to fileformat
+of file format and min and max bloomfilter
+
+industry standerd is parquet
+
+
+
+
+--paquet is more efficient with nested data structure compared to ORC as nested data is also flattended in column oriented fashin with parquet
+
+--ORC: ACID transaction are only possible when using ORC as file format
+---ORC format including block level index for each column. this lead to potentially more efficient I/O hence faster  read / writes
+--Hive as vectorized ORC reader but no vectorized parquet reader thats why hive prefer orc
+-- spark has a vectorized parquet reader and no vectorized ORC reader that's why parquet is the preferred format with spark. however spark 2.3 there is an ORC vectorized reader as well.
+
+
+-------------------------------------------------------------------
+Parquet:
+parquet is a columnar binary data storage format that supports both nested and flat schemas and it is available to any project in hadoop eco system.
+
+separates the metadata and data.single metadata for all parquet files
+
+columnar:
+
+--supports compression and encodings
+--compression in parquet is done per colun. it uses compression like lzip,gzip,snappy, etc
+--encoding techniques --it has plain,RLE/bit packing,delta,dictonary encoding etc..
+
+nested schema:
+
+
+
+row group:a group of rows that holds serialized arrays of column entries,maximum size buffered in memory while writing
+
+
+columnchunck:the data for one column in a row grop, these chucnks can be read independently
+
+
+page: Unit of access in a column chunck
+     R(repetition) & D(definition) value to reconstruct nested schema
+     encoding data
+
+metadata: file metadata column metadata page heder metadata
+
+parquet does not store null
+
+
+
+benifits:
+efficient storage
+  --like data together (better compression)
+  --type specific encoding possible
+efficient I/O and CPU utilization
+  --Only read column that are needed and avoid unnecessary deserialization
+--opportiunities to work on encoded data
+
+support for nested and flat schema
+work for multiple frameworks
+
+
+-- all strings together ,int together better serialization
+all datatypes store togethers
+
+spark with parquet:
+
+
+
+
+---------------------------------------------
+
+broadcast:
+
