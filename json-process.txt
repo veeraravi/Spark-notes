@@ -1,0 +1,61 @@
+
+
+ val rec1: String = """{
+    "visitorId": "v1",
+    "products": [{
+         "id": "i1",
+         "interest": 0.68
+    }, {
+         "id": "i2",
+         "interest": 0.42
+    }]
+}"""
+
+  val rec2: String = """{
+    "visitorId": "v2",
+    "products": [{
+         "id": "i1",
+         "interest": 0.78
+    }, {
+         "id": "i3",
+         "interest": 0.11
+    }]
+}"""
+
+val visitsData: Seq[String] = Seq(rec1, rec2)
+val productIdToNameMap = Map("i1" -> "Nike Shoes", "i2" -> "Umbrella", "i3" -> "Jeans")
+/*
+val mprdd = sc.parallelize(productIdToNameMap.toSeq)
+val lookupDF = mprdd.toDF("id","product")
+*/
+
+val rdd = sc.parallelize(visitsData)
+val df = spark.read.json(rdd)
+
+val prods = df.select(df("visitorId"),explode(df("products")).alias("products"))
+
+val allCols = prods.select(prods("visitorId"),prods("products.id").alias("id"),prods("products.interest").alias("interest"))
+
+val broadcast = sc.broadcast(productIdToNameMap)
+
+val productsAsRdd=allCols.rdd.map(row => {
+    val visitorId = row.getString(0)
+    val id = row.getString(1)
+    val interest = row.getDouble(2)
+    val rowAsString = visitorId+","+id+","+interest
+    rowAsString
+  })
+ 
+val productsToJoin = productsAsRdd.map(line => (line.split(",")(1),line))
+
+val joined = productsToJoin.map(v=>(v._2,(broadcast.value(v._1))))
+
+ val finalRdd = joined.map(row => {
+          val visitorId = row._1.split(",")(0)
+          val id = row._1.split(",")(1)
+          val interest = row._1.split(",")(2).toFloat
+      val name = row._2
+	  val jsonString = s"{visitorId: $visitorId, id: $id,interest: $interest, name: $name}"
+          //val rowAsString = visitorId+","+id+","+interest+","+name
+      jsonString
+      })

@@ -1,0 +1,134 @@
+---Insert overwrite table uds_ds.ltd_model_inputs 
+select tudclinf.clm_num_cd,
+tudclinf.sal_amt,
+tudclinf.sal_md,
+tudclinf.lnth_srv_yrs,
+tudclinf.ocp_dsbl_ind,
+tudclinf.rehab_stat_cd,
+tudclinf.ocp_cd,
+tudclinf.dsbl_age_yrs,
+tudclinf.dsbl_age_mths,
+tudclinf.acdnt_dt,
+tudclinf.dsbl_dt,
+tudclinf.bn_strt_dt,
+tudclinf.clm_rcvd_dt,
+tudclinf.lst_wrk_dt,
+tudclinf.trnstn_dt,
+tudclinf.approved_dt,
+tudclmbr.brdg_cd,
+tudemply.mrtl_stat_cd,
+tudemply.sex_cd,
+tudemply.zip_cd,
+tudemply.job_cl_cd,
+tudtrtmt.phy_dsbl_dt,
+tudtrtmt.st_cd,
+tudplpv2.mand_rehab_ind,
+tudemplr.bsns_nm,
+tudemplr.sic_cd,
+tudemplr.cust_nm,
+tudemplr.situs_st,
+tudcal10.sal_pct,
+tudplprv.wc_cd,
+tudcclm_prgrs.like_clm_prgrs_cd,
+tudbn.bn_typ_cd,
+tudbn.bn_typ_amt,
+tudbn.updt_ts,
+CASE WHEN tudemplr.sic_cd BETWEEN '0100'
+AND '0999' THEN 'Agriculture, Forestry and Fishing' WHEN tudemplr.sic_cd BETWEEN '1000'
+AND '1499' THEN 'Mining' WHEN tudemplr.sic_cd BETWEEN '1500'
+AND '1799' THEN 'Construction' WHEN tudemplr.sic_cd BETWEEN '1800'
+AND '1999' THEN 'not used' WHEN tudemplr.sic_cd BETWEEN '2000'
+AND '3999' THEN 'Manufacturing' WHEN tudemplr.sic_cd BETWEEN '4000'
+AND '4999' THEN 'Transportation, Communications, Electric, Gas and Sanitary service' WHEN tudemplr.sic_cd BETWEEN '5000'
+AND '5199' THEN 'Wholesale Trade' WHEN tudemplr.sic_cd BETWEEN '5200'
+AND '5999' THEN 'Retail Trade' WHEN tudemplr.sic_cd BETWEEN '6000'
+AND '6799' THEN 'Finance, Insurance and Real Estate' WHEN tudemplr.sic_cd BETWEEN '7000'
+AND '8999' THEN 'Services' WHEN tudemplr.sic_cd BETWEEN '9100'
+AND '9729' THEN 'Public Administration' WHEN tudemplr.sic_cd BETWEEN '9900'
+AND '9999' THEN 'NonclassIFiable' ELSE 'NOTHING' END AS sic_cd,
+CASE when tudclinf.ocp_cd = 0 then 'Prof, technical, managerial' when tudclinf.ocp_cd = 1 then 'Prof, technical, managerial' when tudclinf.ocp_cd = 2 then 'Clerical, sales' when tudclinf.ocp_cd = 3 then 'Service' when tudclinf.ocp_cd = 4 then 'Agricultural, fishery, forestry' when tudclinf.ocp_cd = 5 then 'Processing' when tudclinf.ocp_cd = 6 then 'Machine Trades' when tudclinf.ocp_cd = 7 then 'Benchwork occupations' when tudclinf.ocp_cd = 8 then 'Structural work' when tudclinf.ocp_cd = 9 then 'Misc' else 'Other' end as ocp_cd,
+CASE when (tudtrtmt.prg_est_dlvry_dt != '' OR tudtrtmt.prg_term_dt != '') then TRUE ELSE FALSE END,
+DATEDIFF(tudtrtmt.hosp_dschrg_dt, tudtrtmt.hosp_admt_dt) + 1 as hosp_days,
+DATEDIFF(tudtrtmt.phy_dsbl_dt, tudtrtmt.prgns_dt) + 1 as prgns_days,
+DATEDIFF(clm_rcvd_dt, dsbl_dt) as test_dt,
+tudtrtmt_icd.icd_cnt,
+Co_morbidity_table.Co_morbidity,
+ICD_cnt_latest_table.ICD_cnt_latest,
+surgery_cnt_table.surgery_cnt,
+procedure_cnt_table.procedure_cnt,
+n_dpdnt_table.n_dpdnt,
+dp_spouse_table.dp_spouse,
+dp_child_table.dp_child,
+dp_legal_child_table.dp_legal_child,
+dp_step_child_table.dp_step_child,
+dp_sponsored_table.dp_sponsored,
+phy_dgre_cnt_table.phy_dgre_cnt,
+pl_of_srv_cnt_table.pl_of_srv_cnt,
+phy_cnt_table.phy_cnt,
+max_trtmt_cnt_table.max_trtmt_cnt,
+trtmt_day_cnt_table.trtmt_day_cnt,
+trtmt_day_cnt__table.trtmt_day_cnt_,
+trtmt_day_cnt_E_table.trtmt_day_cnt_E,
+trtmt_day_cnt_H_table.trtmt_day_cnt_H,
+trtmt_day_cnt_O_table.trtmt_day_cnt_O,
+trtmt_day_cnt_D_table.trtmt_day_cnt_D,
+trtmt_day_cnt_S_table.trtmt_day_cnt_S,
+--latest_prmry_icd_new_table.latest_prmry_icd_new,
+t_icd9_lkup.CRIT_ILL_IND as CRIT_ILL_IND,
+case when (pri_icd_dx_ver_cd = 10) then pri_icd_dx_cd else prmry_icd9_cd end  as prmry_icd_new,
+case when t_icd9_lkup.mjr_dx_ctgy_cd is not null then t_icd9_lkup.mjr_dx_ctgy_cd  else  'ZZZ' end as mjr_dx_ctgy_cd,
+
+PRI_ICD_9_FINAL_TABLE.PRI_ICD_9_FINAL,
+case when PRI_ICD_9_FINAL_TABLE.PRI_ICD_9_FINAL = compassionate_allowance_list.ICD_CD then 1 else 0 end as COMP_ALLOWANCE_FLG
+
+from (Select * from (select * ,row_number() over(partition by clm_num_cd order by  updt_ts desc) as rn from uds_ds.tudclinf ) a where rn = 1 and a.CLM_NUM_CD > '599999999999') tudclinf
+INNER JOIN uds_ds.tudclmbr on tudclinf.clm_num_cd = tudclmbr.to_clm_num
+INNER JOIN (Select * from (select * ,row_number() over(partition by clm_num_cd order by  updt_ts desc) as rn from uds_ds.tudemply ) a where rn = 1) tudemply on tudclinf.clm_num_cd = tudemply.clm_num_cd
+INNER JOIN (Select * from (select * ,row_number() over(partition by clm_num_cd order by  updt_ts desc) as rn from uds_ds.tudtrtmt ) a where rn = 1) tudtrtmt on tudclinf.clm_num_cd = tudtrtmt.clm_num_cd
+INNER JOIN tudplpv2 on tudclinf.RPRT_NUM = tudplpv2.RPRT_NUM and tudclinf.COV_CD = tudplpv2.COV_CD and tudclinf.PLN_CD = tudplpv2.PLN_CD
+INNER JOIN tudemplr on tudclinf.RPRT_NUM = tudemplr.RPRT_NUM
+INNER JOIN tudcal10 on tudclinf.RPRT_NUM = tudcal10.RPRT_NUM and tudclinf.COV_CD = tudcal10.COV_CD and tudclinf.PLN_CD = tudcal10.PLN_CD
+INNER JOIN tudplprv on tudclinf.RPRT_NUM = tudplprv.RPRT_NUM and tudclinf.COV_CD = tudplprv.COV_CD and tudclinf.PLN_CD = tudplprv.PLN_CD
+INNER JOIN tudcclm_prgrs on tudcclm_prgrs.CLM_NUM_CD = tudclinf.CLM_NUM_CD
+INNER JOIN TUDBN ON  TUDBN.CLM_NUM_CD = TUDCLINF.CLM_NUM_CD 
+LEFT JOIN (select clm_num_cd,count(distinct case when icd_dx_ver_cd = 10 then icd_dx_1_cd else icd9_diag_1_cd end ,case when  icd_dx_ver_cd = 10 then icd_dx_2_cd else icd9_diag_2_cd end,case when  icd_dx_ver_cd = 10 then icd_dx_3_cd else icd9_diag_3_cd end,case when  icd_dx_ver_cd = 10 then icd_dx_4_cd else icd9_diag_4_cd end) as icd_cnt from tudtrtmt where clm_num_cd is not null group by clm_num_cd) tudtrtmt_icd ON tudtrtmt_icd.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (Select clm_num_cd,case when icd_count > 1 then 1 else 0 end as Co_morbidity from(
+select clm_num_cd,count(distinct case when icd_dx_ver_cd = 10 then icd_dx_1_cd else icd9_diag_1_cd end ,case when  icd_dx_ver_cd = 10 then icd_dx_2_cd else icd9_diag_2_cd end,case when  icd_dx_ver_cd = 10 then icd_dx_3_cd else icd9_diag_3_cd end,case when  icd_dx_ver_cd = 10 then icd_dx_4_cd else icd9_diag_4_cd end) as icd_count  from tudtrtmt where clm_num_cd is not null group by clm_num_cd) a) Co_morbidity_table ON Co_morbidity_table.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (select clm_num_cd,count(distinct case when icd_dx_ver_cd = 10 then icd_dx_1_cd else icd9_diag_1_cd end ,case when  icd_dx_ver_cd = 10 then icd_dx_2_cd else icd9_diag_2_cd end,case when  icd_dx_ver_cd = 10 then icd_dx_3_cd else icd9_diag_3_cd end,case when  icd_dx_ver_cd = 10 then icd_dx_4_cd else icd9_diag_4_cd end) as ICD_cnt_latest from (Select * from (select * ,row_number() over(partition by clm_num_cd order by  updt_ts desc) as rn from uds_ds.tudtrtmt ) a where rn = 1) tudtrtmt where clm_num_cd is not null group by clm_num_cd) ICD_cnt_latest_table ON ICD_cnt_latest_table.clm_num_cd = tudclinf.clm_num_cd 
+LEFT JOIN (Select clm_num_cd,count(distinct cpt4_proc_1_cd,cpt4_proc_2_cd) as surgery_cnt  from tudtrtmt where cpt4_proc_1_cd between  10001 and 69990 and cpt4_proc_2_cd between  10001 and 69990 and trim(clm_num_cd) is not null group by clm_num_cd) surgery_cnt_table ON surgery_cnt_table.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (Select clm_num_cd,count(distinct cpt4_proc_1_cd,cpt4_proc_2_cd) as procedure_cnt
+ from tudtrtmt where cpt4_proc_1_cd is not null and cpt4_proc_2_cd is not null and trim(clm_num_cd) is not null group by clm_num_cd) procedure_cnt_table ON procedure_cnt_table.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (Select clm_num_cd,count(distinct dpnd_seq_num,dpnd_cd) as n_dpdnt from tuddpdnt where dpnd_seq_num is not null and trim(clm_num_cd) is not null group by clm_num_cd)n_dpdnt_table ON tudclinf.clm_num_cd = n_dpdnt_table.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct dpnd_seq_num,dpnd_cd) as dp_spouse
+ from tuddpdnt where dpnd_cd =1 and trim(clm_num_cd) is not null group by clm_num_cd) dp_spouse_table ON dp_spouse_table.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (Select clm_num_cd,count(distinct dpnd_seq_num,dpnd_cd) as dp_child from tuddpdnt where dpnd_cd =2 and trim(clm_num_cd) is not null group by clm_num_cd) dp_child_table ON dp_child_table.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (Select clm_num_cd,count(distinct dpnd_seq_num,dpnd_cd) as dp_legal_child
+ from tuddpdnt where dpnd_cd =3 and trim(clm_num_cd) is not null group by clm_num_cd) dp_legal_child_table ON dp_legal_child_table.clm_num_cd = tudclinf.clm_num_cd
+LEFT JOIN (Select clm_num_cd,count(distinct dpnd_seq_num,dpnd_cd) as dp_step_child
+ from tuddpdnt where dpnd_cd =4 and trim(clm_num_cd) is not null group by clm_num_cd) dp_step_child_table ON dp_step_child_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct dpnd_seq_num,dpnd_cd) as dp_sponsored from tuddpdnt where dpnd_cd =5 and trim(clm_num_cd) is not null group by clm_num_cd) dp_sponsored_table on dp_sponsored_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct phy_dgre_cd) as phy_dgre_cnt
+ from tudtrtmt where phy_dgre_cd is not null and trim(clm_num_cd) is not null group by clm_num_cd)phy_dgre_cnt_table ON phy_dgre_cnt_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct pl_of_srv_cd) as pl_of_srv_cnt
+ from tudtrtmt where pl_of_srv_cd is not null and trim(clm_num_cd) is not null group by clm_num_cd) pl_of_srv_cnt_table ON pl_of_srv_cnt_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(concat(brkr_num,phy_fst_nm,phy_mddl_init_nm,phy_lst_nm)) as phy_cnt from tudtrtmt where brkr_num is not null or phy_mddl_init_nm is not null or phy_lst_nm is not null and trim(clm_num_cd) is not null group by clm_num_cd) phy_cnt_table on phy_cnt_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,max(trtmt_seq_num) as max_trtmt_cnt
+ from tudtrtmt where trtmt_seq_num is not null and trim(clm_num_cd) is not null group by clm_num_cd) max_trtmt_cnt_table ON max_trtmt_cnt_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt
+ from tudtrtmt where trtmt_dt is not null and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt_table ON trtmt_day_cnt_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt_ 
+ from tudtrtmt where trtmt_dt is not null and pl_of_srv_cd is not null and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt__table ON trtmt_day_cnt__table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt_D from tudtrtmt where trtmt_dt is not null and pl_of_srv_cd = 'D' and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt_D_table ON trtmt_day_cnt_D_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt_E from tudtrtmt where trtmt_dt is not null and pl_of_srv_cd = 'E' and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt_E_table ON trtmt_day_cnt_E_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt_H from tudtrtmt where trtmt_dt is not null and pl_of_srv_cd = 'H' and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt_H_table ON trtmt_day_cnt_H_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt_O from tudtrtmt where trtmt_dt is not null and pl_of_srv_cd = 'O' and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt_O_table ON trtmt_day_cnt_O_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN(Select clm_num_cd,count(distinct trtmt_dt) as trtmt_day_cnt_S from tudtrtmt where trtmt_dt is not null and pl_of_srv_cd = 'S' and trim(clm_num_cd) is not null group by clm_num_cd) trtmt_day_cnt_S_table ON trtmt_day_cnt_S_table.clm_num_cd= tudclinf.clm_num_cd
+LEFT JOIN  icd9_lookup_table ON icd9_lookup_table.ICD9_CD = tudemply.prmry_icd9_cd
+LEFT JOIN  analytics.t_icd9_lkup ON t_icd9_lkup.icd9_cd = tudemply.prmry_icd9_cd
+LEFT JOIN compassionate_allowance_list ON compassionate_allowance_list.ICD_CD = tudemply.pri_icd_dx_ver_cd
+LEFT JOIN (select 
+case when tudemply.pri_icd_dx_ver_cd = 10 then ICD_MAP.ICD10 
+when tudemply.pri_icd_dx_ver_cd = 09 then ICD_MAP.ICD9
+else tudemply.pri_icd_dx_ver_cd end as PRI_ICD_9_FINAL
+from tudemply Inner join tudclinf ON tudemply.clm_num_cd = tudclinf.clm_num_cd LEFT JOIN ICD_MAP on tudemply.prmry_icd9_cd = ICD_MAP.ICD9) PRI_ICD_9_FINAL_TABLE ON PRI_ICD_9_FINAL_TABLE.PRI_ICD_9_FINAL =  compassionate_allowance_list.ICD_CD
+where tudtrtmt.pl_of_srv_cd is not null and tudtrtmt.trtmt_seq_num is not null and tudtrtmt.trtmt_dt is not null limit 10; 

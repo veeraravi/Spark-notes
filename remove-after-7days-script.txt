@@ -1,0 +1,33 @@
+### Getting keytab ###
+getTGTKinit $KEYTAB_PATH $KEYTAB_NAME $PRINCIPAL_NAME
+
+daysToPurge=7
+
+echo $daysToPurge
+
+NOW=$(date +"%Y%m%d")
+d=$(date +"%Y%m%d")
+start_date=$( echo `date -d "${NOW} -${daysToPurge} days" +"%Y%m%d"`)
+num_days=$daysToPurge
+
+echo $start_date
+
+for i in `seq 1 $num_days`
+do
+    date=`date +%Y%m%d -d "${start_date}-${i} days"`
+    getTGTKinit $KEYTAB_PATH $KEYTAB_NAME $PRINCIPAL_NAME
+
+    validateTable=$(hive -e "USE vcas_work_bckup; show tables like '*$date*';")
+    echo $validateTable
+    for table in $validateTable
+     do
+       echo "TABLE NAME:" $table
+
+    getTGTKinit $KEYTAB_PATH $KEYTAB_NAME $PRINCIPAL_NAME
+
+    #hive -e "USE $archiveDatabaseName; DROP TABLE $table PURGE;"
+           hive -e "USE vcas_work_bckup; select * from  $table limit 5;"
+       echo "TABLE "  $table
+#"PURGED"
+     done
+done

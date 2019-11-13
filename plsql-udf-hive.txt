@@ -1,0 +1,593 @@
+create or replace FUNCTION FN_GET_RULE_TEXT (
+        v_seln_actn_id      NUMBER
+      , v_rev_lvl           NUMBER
+      , v_start             NUMBER
+      , v_end               NUMBER
+) RETURN VARCHAR2
+AS
+
+        v_text              VARCHAR2(32000);
+        v_rule_clause_no    NUMBER(5)   := 0;
+        v_rule_cond_no      NUMBER(5)   := 0;
+        v_param_fetr_cd     VARCHAR2(50);
+        v_rec_count         NUMBER(10);
+        v_operator          VARCHAR2(10);
+        v_exp_val           VARCHAR2(50);
+
+BEGIN
+
+        IF ( v_rev_lvl  IN ( 1,0,2) ) THEN
+
+            v_text  := NULL;
+
+
+            FOR i IN ( SELECT rcl.rule_clause_id
+                         FROM RULE_ACTION ra, RULE_CLAUSE rcl
+                        WHERE ra.rule_action_id = v_seln_actn_id
+                          AND rcl.rule_id       = ra.rule_id
+                        ORDER BY rcl.rule_clause_no             )
+            LOOP
+
+                FOR j IN  ( SELECT rc.rule_cond_id, rc.rule_cond_no
+                                 , rc.neg_i, rc.owning_cond_i, rc.cond_typ
+                              FROM RULE_CONDITION rc
+                             WHERE rc.rule_clause_id    = i.rule_clause_id
+                             ORDER BY rc.owning_cond_i desc, rc.neg_i, rc.rule_cond_no  )
+                LOOP
+
+                        IF ( j.owning_cond_i = 1 ) THEN
+
+                            v_text  := v_text || 'O' || '/ ';
+
+                            IF ( j.cond_typ = 'F' ) THEN
+
+                                FOR k IN ( SELECT f.fetr_no AS Token_No, f.Obsolete_I
+                                             FROM FRule_Condition_Feature fr, Feature f
+                                            WHERE fr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND f.Fetr_Id                 = fr.Fetr_Id
+                                            UNION ALL
+                                            SELECT fes.feature_entity_set_name AS Token_No,fes.Obsolete_I
+                                              FROM Frule_Cond_Feature_Entity_Set fre,Feature_Entity_Set fes
+                                             WHERE fre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND fes.Fetr_Entity_Set_Id   = fre.Fetr_Entity_Set_Id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'M' ) THEN
+
+
+                                FOR k IN ( SELECT m.modl_no AS Token_No, m.Obsolete_i
+                                             FROM MRule_Condition_Model mr, Model m
+                                            WHERE mr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND m.modl_Id                 = mr.modl_Id
+                                            UNION ALL
+                                            SELECT mes.model_entity_set_name AS Token_No,mes.Obsolete_I
+                                              FROM Mrule_Cond_Model_Entity_Set mre, Model_Entity_Set mes
+                                             WHERE mre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND mes.Modl_Entity_Set_Id   = mre.model_entity_set_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'MF' ) THEN
+
+
+                                FOR k IN ( SELECT f.fetr_no AS Token_No, f.Obsolete_I
+                                             FROM FRule_Condition_Feature fr, Feature f
+                                            WHERE fr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND f.Fetr_Id                 = fr.Fetr_Id
+                                            UNION ALL
+                                           SELECT fes.feature_entity_set_name AS Token_No,fes.Obsolete_I
+                                             FROM Frule_Cond_Feature_Entity_Set fre,Feature_Entity_Set fes
+                                            WHERE fre.Rule_Cond_Id          = j.Rule_Cond_Id
+                                              AND fes.Fetr_Entity_Set_Id    = fre.Fetr_Entity_Set_Id
+                                            UNION ALL
+                                           SELECT m.modl_no AS Token_No, m.Obsolete_i
+                                             FROM MRule_Condition_Model mr, Model m
+                                            WHERE mr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND m.modl_Id                 = mr.modl_Id
+                                            UNION ALL
+                                            SELECT mes.model_entity_set_name AS Token_No,mes.Obsolete_I
+                                              FROM Mrule_Cond_Model_Entity_Set mre, Model_Entity_Set mes
+                                             WHERE mre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND mes.Modl_Entity_Set_Id   = mre.model_entity_set_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            END IF;
+
+                        END IF;
+
+                        IF ( j.neg_i = 0  and j.owning_cond_i = 0) THEN
+
+                            IF ( v_text is NULL ) THEN
+
+                                v_text  := v_text || 'W' || '/ ';
+
+                            ELSE IF (SUBSTR(v_text,LENGTH(v_text)-3,2) LIKE '%OR%') THEN
+
+                                    v_text  := v_text || 'W/ ';
+
+                                ELSE
+
+                                    v_text  := v_text || '& ' || 'W/ ';
+
+                                END IF;
+
+                            END IF;
+
+                            IF ( j.cond_typ = 'F' ) THEN
+
+                                FOR k IN ( SELECT f.fetr_no AS Token_No, f.Obsolete_I
+                                             FROM FRule_Condition_Feature fr, Feature f
+                                            WHERE fr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND f.Fetr_Id                 = fr.Fetr_Id
+                                            UNION ALL
+                                            SELECT fes.feature_entity_set_name AS Token_No,fes.Obsolete_I
+                                              FROM Frule_Cond_Feature_Entity_Set fre,Feature_Entity_Set fes
+                                             WHERE fre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND fes.Fetr_Entity_Set_Id   = fre.Fetr_Entity_Set_Id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'M' ) THEN
+
+
+                                FOR k IN ( SELECT m.modl_no AS Token_No, m.Obsolete_i
+                                             FROM MRule_Condition_Model mr, Model m
+                                            WHERE mr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND m.modl_Id                 = mr.modl_Id
+                                            UNION ALL
+                                            SELECT mes.model_entity_set_name AS Token_No,mes.Obsolete_I
+                                              FROM Mrule_Cond_Model_Entity_Set mre, Model_Entity_Set mes
+                                             WHERE mre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND mes.Modl_Entity_Set_Id   = mre.model_entity_set_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'MF' ) THEN
+
+
+                                FOR k IN ( SELECT f.fetr_no AS Token_No, f.Obsolete_I
+                                             FROM FRule_Condition_Feature fr, Feature f
+                                            WHERE fr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND f.Fetr_Id                 = fr.Fetr_Id
+                                            UNION ALL
+                                           SELECT fes.feature_entity_set_name AS Token_No,fes.Obsolete_I
+                                             FROM Frule_Cond_Feature_Entity_Set fre,Feature_Entity_Set fes
+                                            WHERE fre.Rule_Cond_Id          = j.Rule_Cond_Id
+                                              AND fes.Fetr_Entity_Set_Id    = fre.Fetr_Entity_Set_Id
+                                            UNION ALL
+                                           SELECT m.modl_no AS Token_No, m.Obsolete_i
+                                             FROM MRule_Condition_Model mr, Model m
+                                            WHERE mr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND m.modl_Id                 = mr.modl_Id
+                                            UNION ALL
+                                            SELECT mes.model_entity_set_name AS Token_No,mes.Obsolete_I
+                                              FROM Mrule_Cond_Model_Entity_Set mre, Model_Entity_Set mes
+                                             WHERE mre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND mes.Modl_Entity_Set_Id   = mre.model_entity_set_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'P' ) THEN
+
+                                FOR k IN (  SELECT pf.param_fetr_cd, pf.obsolete_i
+                                                 , po.operator
+                                              FROM param_rule_condition_exp prce, parametric_feature pf
+                                                 , parametric_operator po
+                                             WHERE prce.Rule_Cond_Id            = j.Rule_Cond_Id
+                                               AND po.param_oper_id             = prce.param_oper_id
+                                               AND pf.param_fetr_id             = prce.param_fetr_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_param_fetr_cd := '*' || k.param_fetr_cd;
+
+                                        ELSE
+
+                                                v_param_fetr_cd := k.param_fetr_cd;
+
+                                        END IF;
+
+
+                                        IF ( k.operator IN ('<=','<','>=','>','!=','=','THRU') ) THEN
+
+                                                v_operator  := ' ' || k.operator || ' ';
+
+                                        ELSIF (k.operator = 'OR') THEN
+
+                                                v_operator  := ' ' || ',' || ' ';
+                                        END IF;
+
+
+                                        SELECT COUNT(*)
+                                          INTO v_rec_count
+                                          FROM parametric_exp_value
+                                         WHERE Rule_Cond_Id     = j.Rule_Cond_Id;
+
+
+                                        IF ( v_rec_count = 1 ) THEN
+
+                                            SELECT exp_val
+                                              INTO v_exp_val
+                                              FROM parametric_exp_value
+                                             WHERE Rule_Cond_Id     = j.Rule_Cond_Id;
+
+                                                v_text  := v_text || v_param_fetr_cd ||  ' '
+                                                        || v_operator || ' ' || v_exp_val;
+
+                                            v_text  := v_text || CHR(10);
+
+
+                                        ELSIF ( v_rec_count = 2 ) THEN
+
+                                            IF ( k.operator = 'OR' ) THEN
+
+                                                v_text  := v_text || v_param_fetr_cd
+                                                            || ' = ' ;
+
+                                            ELSE
+
+                                                v_text  := v_text || v_param_fetr_cd
+                                                            || ' ' ;
+
+                                            END IF;
+
+                                            FOR l IN ( SELECT exp_val
+                                                         FROM parametric_exp_value
+                                                        WHERE Rule_Cond_Id      = j.Rule_Cond_Id
+                                           		ORDER BY exp_val_order )
+                                           LOOP
+
+                                                v_text  := v_text || l.exp_val || v_operator;
+
+                                            END LOOP;
+
+                                            IF ( k.operator = 'OR' ) THEN
+                                                    v_text  := SUBSTR(v_text,1,LENGTH(v_text)-2) || CHR(10);
+                                            ELSE
+                                                    v_text  := SUBSTR(v_text,1,LENGTH(v_text)-5) || CHR(10);
+                                            END IF;
+
+                                         ELSIF ( v_rec_count >= 3 ) THEN
+
+                                                v_text  := v_text || v_param_fetr_cd
+                                                            || ' = ' ;
+
+                                            FOR l IN ( SELECT exp_val
+                                                         FROM parametric_exp_value
+                                                        WHERE Rule_Cond_Id      = j.Rule_Cond_Id )
+                                            LOOP
+
+                                                v_text  := v_text || l.exp_val || v_operator;
+
+                                            END LOOP;
+
+                                            v_text  := SUBSTR(v_text,1,LENGTH(v_text)-2) || CHR(10);
+
+                                         END IF;
+
+                                END LOOP;
+
+                            END IF;
+
+                        END IF;
+
+                        IF ( j.owning_cond_i = 0 AND j.neg_i = 1) THEN
+
+                            IF ( v_text is NULL ) THEN
+
+                                v_text  := v_text || 'N' || '/ ';
+
+                            ELSE IF (SUBSTR(v_text,LENGTH(v_text)-3,2) LIKE '%OR%') THEN
+
+                                    v_text  := v_text || 'N/ ';
+
+                                ELSE
+
+                                    v_text  := v_text || '& ' || 'N/ ';
+
+                                END IF;
+
+                            END IF;
+
+                            IF ( j.cond_typ = 'F' ) THEN
+
+                                FOR k IN ( SELECT f.fetr_no AS Token_No, f.Obsolete_I
+                                             FROM FRule_Condition_Feature fr, Feature f
+                                            WHERE fr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND f.Fetr_Id                 = fr.Fetr_Id
+                                            UNION ALL
+                                            SELECT fes.feature_entity_set_name AS Token_No,fes.Obsolete_I
+                                              FROM Frule_Cond_Feature_Entity_Set fre,Feature_Entity_Set fes
+                                             WHERE fre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND fes.Fetr_Entity_Set_Id   = fre.Fetr_Entity_Set_Id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'M' ) THEN
+
+
+                                FOR k IN ( SELECT m.modl_no AS Token_No, m.Obsolete_i
+                                             FROM MRule_Condition_Model mr, Model m
+                                            WHERE mr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND m.modl_Id                 = mr.modl_Id
+                                            UNION ALL
+                                            SELECT mes.model_entity_set_name AS Token_No,mes.Obsolete_I
+                                              FROM Mrule_Cond_Model_Entity_Set mre, Model_Entity_Set mes
+                                             WHERE mre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND mes.Modl_Entity_Set_Id   = mre.model_entity_set_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'MF' ) THEN
+
+
+                                FOR k IN ( SELECT f.fetr_no AS Token_No, f.Obsolete_I
+                                             FROM FRule_Condition_Feature fr, Feature f
+                                            WHERE fr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND f.Fetr_Id                 = fr.Fetr_Id
+                                            UNION ALL
+                                           SELECT fes.feature_entity_set_name AS Token_No,fes.Obsolete_I
+                                             FROM Frule_Cond_Feature_Entity_Set fre,Feature_Entity_Set fes
+                                            WHERE fre.Rule_Cond_Id          = j.Rule_Cond_Id
+                                              AND fes.Fetr_Entity_Set_Id    = fre.Fetr_Entity_Set_Id
+                                            UNION ALL
+                                           SELECT m.modl_no AS Token_No, m.Obsolete_i
+                                             FROM MRule_Condition_Model mr, Model m
+                                            WHERE mr.Rule_Cond_Id           = j.Rule_Cond_Id
+                                              AND m.modl_Id                 = mr.modl_Id
+                                            UNION ALL
+                                            SELECT mes.model_entity_set_name AS Token_No,mes.Obsolete_I
+                                              FROM Mrule_Cond_Model_Entity_Set mre, Model_Entity_Set mes
+                                             WHERE mre.Rule_Cond_Id         = j.Rule_Cond_Id
+                                               AND mes.Modl_Entity_Set_Id   = mre.model_entity_set_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_text  := v_text || '*' || k.Token_No || ',';
+
+                                        ELSE
+
+                                                v_text  := v_text || k.Token_No || ',';
+
+                                        END IF;
+
+                                END LOOP;
+
+                                v_text  := SUBSTR(v_text,1,LENGTH(v_text)-1) || CHR(10);
+
+                            ELSIF ( j.cond_typ  = 'P' ) THEN
+
+                                FOR k IN (  SELECT pf.param_fetr_cd, pf.obsolete_i
+                                                 , po.operator
+                                              FROM param_rule_condition_exp prce, parametric_feature pf
+                                                 , parametric_operator po
+                                             WHERE prce.Rule_Cond_Id            = j.Rule_Cond_Id
+                                               AND po.param_oper_id             = prce.param_oper_id
+                                               AND pf.param_fetr_id             = prce.param_fetr_id )
+                                LOOP
+
+                                        IF ( k.Obsolete_I   = 1 ) THEN
+
+                                                v_param_fetr_cd := '*' || k.param_fetr_cd;
+
+                                        ELSE
+
+                                                v_param_fetr_cd := k.param_fetr_cd;
+
+                                        END IF;
+
+
+                                        IF ( k.operator IN ('<=','<','>=','>','!=','=','THRU') ) THEN
+
+                                                v_operator  := ' ' || k.operator || ' ';
+
+                                        ELSIF (k.operator = 'OR') THEN
+
+                                                v_operator  := ' ' || ',' || ' ';
+                                        END IF;
+
+
+                                        SELECT COUNT(*)
+                                          INTO v_rec_count
+                                          FROM parametric_exp_value
+                                         WHERE Rule_Cond_Id     = j.Rule_Cond_Id;
+
+
+                                        IF ( v_rec_count = 1 ) THEN
+
+                                            SELECT exp_val
+                                              INTO v_exp_val
+                                              FROM parametric_exp_value
+                                             WHERE Rule_Cond_Id     = j.Rule_Cond_Id;
+
+                                                v_text  := v_text || v_param_fetr_cd ||  ' '
+                                                        || v_operator || ' ' || v_exp_val;
+
+                                        ELSIF ( v_rec_count = 2 ) THEN
+
+                                            IF ( k.operator = 'OR' ) THEN
+
+                                                v_text  := v_text || v_param_fetr_cd
+                                                            || ' = ' ;
+
+                                            ELSE
+
+                                                v_text  := v_text || v_param_fetr_cd
+                                                            || ' ' ;
+
+                                            END IF;
+
+                                            FOR l IN ( SELECT exp_val
+                                                         FROM parametric_exp_value
+                                                        WHERE Rule_Cond_Id      = j.Rule_Cond_Id
+                                                        ORDER BY exp_val_order)
+                                            LOOP
+
+                                                v_text  := v_text || l.exp_val || v_operator;
+
+                                            END LOOP;
+
+
+                                            IF ( k.operator = 'OR' ) THEN
+                                                    v_text  := SUBSTR(v_text,1,LENGTH(v_text)-2) || CHR(10);
+                                            ELSE
+                                                    v_text  := SUBSTR(v_text,1,LENGTH(v_text)-5) || CHR(10);
+                                            END IF;
+
+                                         ELSIF ( v_rec_count >= 3 ) THEN
+
+                                                v_text  := v_text || v_param_fetr_cd
+                                                            || ' = ' ;
+
+                                            FOR l IN ( SELECT exp_val
+                                                         FROM parametric_exp_value
+                                                        WHERE Rule_Cond_Id      = j.Rule_Cond_Id )
+                                            LOOP
+
+                                                v_text  := v_text || l.exp_val || v_operator;
+
+                                            END LOOP;
+
+                                            v_text  := SUBSTR(v_text,1,LENGTH(v_text)-2) || CHR(10);
+
+                                         END IF;
+
+                                END LOOP;
+
+                                v_text  := v_text || CHR(10);
+
+                            END IF;
+
+                        END IF;
+
+                    END LOOP;
+
+                    v_text  :=  v_text || ' OR ' ||CHR(10);
+
+                END LOOP;
+
+        END IF;
+
+        v_text  :=  SUBSTR(v_text,1,LENGTH(v_text)-5);
+
+--        DBMS_OUTPUT.PUT_LINE('Length of Rule Text : ' || LENGTH(v_text));
+
+        RETURN SUBSTR(v_text,v_start,(v_end-v_start+1));
+
+/*
+EXCEPTION
+        WHEN OTHERS THEN
+
+                DBMS_OUTPUT.PUT_LINE('Length of Failed Rule Text : ' || LENGTH(SUBSTR(v_text,v_start,v_end)));
+*/
+END FN_GET_RULE_TEXT;

@@ -1,0 +1,6 @@
+lab: http://kitesdk.org/docs/0.17.1/labs/1-setting-up-the-quickstart-vm.html
+https://aseigneurin.github.io/2018/08/02/kafka-tutorial-4-avro-and-schema-registry.html
+https://dzone.com/articles/kafka-avro-serialization-and-the-schema-registry
+https://github.com/JerryLead/SparkInternals/tree/master/markdown/english
+https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/rdd/HadoopRDD.scala
+https://github.com/harjeet88/spark_examples/blob/master/scala/com/examples/spark/AggByKeyExample.scala
