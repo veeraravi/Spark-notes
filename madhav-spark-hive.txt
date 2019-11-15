@@ -1,0 +1,57 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   outOfService.scala
+
+package com.navistar.xpo;
+
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.types.*;
+import scala.collection.immutable.*;
+
+public final class outOfService$
+{
+
+    public Map properties()
+    {
+        return properties;
+    }
+
+    public void properties_$eq(Map x$1)
+    {
+        properties = x$1;
+    }
+
+    public SparkSession spark()
+    {
+        return spark;
+    }
+
+    public void main(String args[])
+    {
+        org.apache.spark.SparkContext sc = spark().sparkContext();
+        StructType customSchema = new StructType((StructField[])(Object[])(new StructField[] {
+            new StructField("cur_loc", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("mnt_loc", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("park_loc", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("unit_type", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space1", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("unit_no", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space2", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("start_date", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("days_o_s", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space3", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), 
+            new StructField("e_r_s", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space4", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("comments", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space5", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space6", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space7", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space8", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("space9", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4()), new StructField("oper_stat", StringType$.MODULE$, true, StructField$.MODULE$.apply$default$4())
+        }));
+        Dataset df1 = spark().read().format("com.crealytics.spark.excel").option("sheetName", "sheet1").option("useHeader", "false").option("treatEmptyValuesAsNulls", "true").option("inferSchema", "false").schema(customSchema).load("/user/va_dflt/xpo_source_list/CWY_OUTOFSERVICE_EXPORT.xls");
+        Dataset df2 = df1.filter(functions$.MODULE$.col("cur_loc").$bang$eq$eq("CUR LOC")).filter(functions$.MODULE$.col("cur_loc").$bang$eq$eq("Out of Service"));
+        df2.registerTempTable("temp");
+        spark().sql("insert overwrite table vehicle_analytics.xpo_outofservice select * from temp");
+    }
+
+    private outOfService$()
+    {
+        properties = (Map)Map$.MODULE$.apply(Nil$.MODULE$);
+        spark = SparkSession$.MODULE$.builder().appName("xpo outOfService").enableHiveSupport().getOrCreate();
+    }
+
+    public static final outOfService$ MODULE$ = this;
+    private Map properties;
+    private final SparkSession spark;
+
+    static 
+    {
+        new outOfService$();
+    }
+}
