@@ -3,7 +3,7 @@
 // Decompiler options: packimports(3) 
 // Source File Name:   outOfService.scala
 
-package com.navistar.xpo;
+
 
 import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.*;
