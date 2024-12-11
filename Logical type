@@ -1,0 +1,43 @@
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+import java.nio.ByteBuffer
+import java.math.BigDecimal
+
+// Initialize SparkSession
+val spark = SparkSession.builder()
+  .appName("Convert Bytes to Decimal")
+  .master("local[*]") // Use appropriate cluster settings
+  .getOrCreate()
+
+// JSON message as a string
+val jsonMessage = """
+"""
+
+// Convert JSON string into a DataFrame
+val jsonDF = spark.read.json(Seq(jsonMessage).toDS())
+
+// UDF to convert bytes (in string form) to decimal
+val bytesToDecimalUDF = udf((bytesString: String) => {
+  if (bytesString != null) {
+    // Decode escaped Unicode string to raw bytes
+    val bytes = bytesString.replace("\\u", "").grouped(4).map(Integer.parseInt(_, 16).toByte).toArray
+    val byteBuffer = ByteBuffer.wrap(bytes)
+    new BigDecimal(new java.math.BigInteger(byteBuffer.array()), 2) // Assuming scale = 2
+  } else {
+    null
+  }
+})
+
+// Transform DataFrame to decode `bytes` fields
+val transformedDF = jsonDF.selectExpr("Message.*")
+  .withColumn("DebtRatio", bytesToDecimalUDF(col("DebtRatio.bytes")))
+  .withColumn("MaxDTI", bytesToDecimalUDF(col("MaxDTI.bytes")))
+  .withColumn("MaxPTI", bytesToDecimalUDF(col("MaxPTI.bytes")))
+  .withColumn("MonthlyDebtPayment", bytesToDecimalUDF(col("MonthlyDebtPayment.bytes")))
+  .withColumn("MonthlyIncome", bytesToDecimalUDF(col("MonthlyIncome.bytes")))
+  .withColumn("MonthlyLoanPayment", bytesToDecimalUDF(col("MonthlyLoanPayment.bytes")))
+  .withColumn("ResidualIncome", bytesToDecimalUDF(col("ResidualIncome.bytes")))
+
+// Show the transformed DataFrame
+transformedDF.show(false)
