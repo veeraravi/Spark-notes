@@ -1,0 +1,60 @@
+test("unzipFilesInDirectory should unzip files and return paths") {
+  val tempDir = Files.createTempDirectory("unzipTest").toFile
+  val zipFile = UtilityFunctions.createTestZipWithFiles(tempDir, List("file1.csv", "file2.csv")) // You'll need to write a helper or mock
+  
+  val resultPaths = UtilityFunctions.unzipFilesInDirectory(zipFile.getAbsolutePath, tempDir.getAbsolutePath, "2023-05")
+  
+  assert(resultPaths.nonEmpty)
+  assert(resultPaths.exists(_.endsWith("file1.csv")))
+  assert(resultPaths.exists(_.endsWith("file2.csv")))
+}
+
+
+test("processFile should process file and return DataFrame") {
+  val spark = SparkSession.builder().master("local[*]").appName("Test").getOrCreate()
+  import spark.implicits._
+  
+  val sampleFile = Files.createTempFile("testfile", ".csv").toFile
+  Files.write(sampleFile.toPath, "col1,col2\nval1,val2".getBytes)
+  
+  val resultDF = processFile(spark, sampleFile.getAbsolutePath, Map("columns" -> List("col1", "col2")))
+  
+  assert(resultDF.columns.contains("col1"))
+  assert(resultDF.columns.contains("col2"))
+  assert(resultDF.count() == 1)
+}
+
+
+test("integrateFrames should join DataFrames") {
+  val spark = SparkSession.builder().master("local[*]").appName("Test").getOrCreate()
+  import spark.implicits._
+
+  val df1 = Seq(("1", "a")).toDF("id", "val1")
+  val df2 = Seq(("1", "b")).toDF("id", "val2")
+
+  val joinedDF = integrateFrames(Seq(df1, df2))
+
+  assert(joinedDF.columns.contains("val1"))
+  assert(joinedDF.columns.contains("val2"))
+  assert(joinedDF.count() == 1)
+}
+
+
+test("final DataFrame should write successfully to path") {
+  val spark = SparkSession.builder().master("local[*]").appName("Test").getOrCreate()
+  import spark.implicits._
+
+  val df = Seq((1, "test")).toDF("id", "val")
+  val writePath = Files.createTempDirectory("writeTest").toFile.getAbsolutePath
+
+  df.coalesce(1).write.option("path", writePath).mode("overwrite").saveAsTable("testTable")
+
+  assert(new File(writePath).listFiles().nonEmpty)
+}
+
+test("jobConfig should throw if missing keys") {
+  val config = ConfigFactory.parseString("")
+  intercept[Exception] {
+    val opType = config.getString("missingKey")
+  }
+}
