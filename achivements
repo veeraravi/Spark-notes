@@ -1,52 +1,84 @@
-🌟 Weekly Accomplishments
-✅ Kafka, Streaming, and Real-Time Data Pipelines
-•	Designed and implemented Structured Streaming pipelines integrated with Kafka for scalable, real-time data ingestion.
-•	Helped Nishant with connecting and reading data from Kafka in a local environment, accelerating early-stage development and debugging.
-•	Investigated and resolved Kafka data loss issues in production, providing multiple solution approaches including partitioning by timestamp and parallel job execution.
-•	Fixed issues with null messages, duplicate runs, and SSL certificate expiration, ensuring stable Kafka-to-BigQuery data flow.
-✅ BigQuery Migration, Schema Evolution, and Processing
-•	Contributed to the design and development of GCP migration to BigQuery, improving data availability and analytics capabilities.
-•	Collaborated with Lalitha on BigQuery schema evolution, validating schema changes and resolving compatibility issues.
-•	Implemented dynamic table creation logic to auto-create tables in BigQuery if they don’t exist and resolved MapType compatibility issues.
-•	Enhanced schema evolution handling for streaming pipelines and tested multiple ingestion formats (Avro, Parquet, Excel, Fixed-width).
-✅ Code Quality, Refactoring & Collaboration
-•	Supported Panneer with code refactoring efforts to resolve SonarQube issues, improving code quality and maintainability.
-•	Worked with Dharmendra on Iceberg code changes, enhancing table performance and storage efficiency.
-•	Participated in multiple PR reviews, merged production fixes, and contributed to reusable code components.
-✅ Pub/Sub, Audit, and Monitoring
-•	Implemented job-level audit summary publishing to Pub/Sub for CDM Nxt.
-•	Completed E2E Kafka testing (producer/consumer) and GDW sandbox onboarding.
-•	Fixed post-deployment issues, improved logging/monitoring, and enhanced pipeline observability.
-✅ Cross-System Integrations & Issue Resolution
-•	Supported CDM Nxt production issues by troubleshooting and enabling connectivity with Teradata.
-•	Worked on DC-exit testing and certificate renewal tasks.
-•	Participated in schema evolution validation for direct vs. indirect writes in BigQuery and prepared documentation for GCP Kafka ingestion.
-✅ Collaboration & Team Support
-•	Supported teammates – Ayush, Nishant, and Roshni – across various development and testing tasks, enabling faster delivery and knowledge sharing.
-•	Worked closely with Ashok, Rahul, Sunil, and KEES team on key issues such as schema registry, SSL, and Kafka integration.
-•	Closed numerous Kanban tickets (HDDCTS series), removed blockers, and accelerated sprint velocity.
-________________________________________
-📈 What Went Well
-•	End-to-end pipelines from Kafka → BigQuery → Pub/Sub were successfully tested and stabilized.
-•	Collaboration across multiple teams led to quicker troubleshooting and accelerated delivery.
-•	Code quality improved significantly through refactoring and Sonar fixes.
-•	Real-time and batch pipelines now support multiple ingestion formats and schema evolution seamlessly.
-•	Contributions in GCP migration design and structured streaming architecture laid a strong foundation for future scalability.
-________________________________________
-🏆 What Stands Out
-•	Strong ownership and problem-solving mindset: Tackled complex data loss, SSL, and schema registry issues with multiple solution paths.
-•	Future-focused design thinking: Structured streaming, Iceberg integration, and multi-format ingestion demonstrate strategic foresight.
-•	Cross-functional leadership: Supported multiple teammates (Panneer, Dharmendra, Lalitha, Ayush, Nishant, Roshni) and collaborated across domains (Kafka, BigQuery, Teradata).
-•	End-to-end delivery focus: From design and development to testing, deployment, and post-prod issue resolution.
-________________________________________
-💪 Strengths & Behaviours Behind Achievements
+1. Kafka, Streaming, and Real-Time Data Pipelines
+
+I designed and implemented Structured Streaming pipelines integrated with Kafka to enable scalable, real-time data ingestion.
+
+I helped Nishant with connecting and reading data from Kafka in a local environment, accelerating early-stage development and troubleshooting.
+
+I investigated and resolved Kafka data loss issues in production by proposing multiple solutions such as partitioning by timestamp and parallel job execution.
+
+I fixed issues related to null messages, duplicate runs, and SSL certificate expiration, ensuring stable and reliable Kafka-to-BigQuery data pipelines.
+
+2. BigQuery Migration, Schema Evolution, and Processing
+
+I contributed to the design and development of GCP migration into BigQuery, improving data availability and analytics capabilities.
+
+I collaborated with Lalitha on BigQuery schema evolution, validating schema changes and resolving compatibility issues.
+
+I implemented dynamic table creation logic to auto-create BigQuery tables when they do not exist and resolved MapType compatibility issues.
+
+I enhanced schema evolution handling for streaming pipelines and validated ingestion with multiple file formats, including Avro, Parquet, Excel, and Fixed-width.
+
+3. Code Quality, Refactoring, and Development Support
+
+I supported Panneer with code refactoring to address SonarQube issues, improving code quality, maintainability, and compliance.
+
+I worked with Dharmendra on Iceberg code changes, optimizing table performance and storage efficiency.
+
+I participated in multiple code reviews, merged production fixes, and contributed to reusable and modular code components.
+
+4. Pub/Sub, Audit, and Monitoring Enhancements
+
+I implemented job-level audit summary publishing to Pub/Sub for CDM Nxt.
+
+I completed end-to-end Kafka testing (producer/consumer) and supported GDW sandbox onboarding.
+
+I enhanced logging and monitoring, resolved post-deployment issues, and improved pipeline observability and reliability.
+
+5. Cross-System Integrations and Issue Resolution
+
+I supported CDM Nxt production issues by enabling and troubleshooting connectivity with Teradata.
+
+I worked on DC-exit testing, handled certificate renewal, and prepared documentation for GCP Kafka ingestion.
+
+I participated in schema evolution validation for both direct and indirect write scenarios in BigQuery.
+
+6. Collaboration and Team Enablement
+
+I supported Ayush, Nishant, and Roshni in development and testing activities, enabling faster delivery and smooth collaboration.
+
+I worked closely with Ashok, Rahul, Sunil, and the KEES team to resolve issues related to schema registry, SSL, and Kafka integration.
+
+I closed multiple Kanban tickets (HDDCTS series), removed blockers, and contributed to maintaining sprint velocity.
+
+✅ What Went Well
+
+I successfully delivered end-to-end Kafka → BigQuery → Pub/Sub pipelines, tested, and stabilized them across environments.
+
+I strengthened cross-team collaboration, resulting in faster issue resolution and accelerated delivery timelines.
+
+I significantly improved code quality through refactoring and Sonar fixes.
+
+I enabled ingestion pipelines to support multiple file formats with seamless schema evolution.
+
+I laid a strong foundation for future scalability through GCP migration design and structured streaming architecture.
+
+⭐ What Stands Out
+
+I demonstrated strong ownership and problem-solving skills by tackling complex issues such as data loss, SSL, and schema registry errors.
+
+I showed future-focused design thinking by implementing structured streaming, Iceberg integration, and multi-format ingestion.
+
+I exhibited cross-functional leadership by supporting multiple teammates and collaborating across domains including Kafka, BigQuery, and Teradata.
+
+I maintained a focus on end-to-end delivery, from ingestion and transformation to audit logging and production support.
+
+💪 Strengths and Behaviours That Drove My Success
 Strength	Example	Impact
 Technical Expertise	Kafka streaming design, GCP migration, Iceberg, schema evolution	Delivered scalable, future-ready data pipelines
-Collaboration	Supported Ayush, Nishant, Roshni, and others	Faster issue resolution and stronger team outcomes
-Problem Solving	Data loss mitigation, SSL issues, schema registry failures	Improved reliability and reduced production incidents
-Quality Focus	Sonar issue fixes, code refactoring	Enhanced codebase maintainability
-End-to-End Ownership	From ingestion to audit logging and monitoring	Ensured smooth delivery and operational readiness
-________________________________________
+Collaboration	Supported Ayush, Nishant, Roshni, and others	Accelerated delivery and improved team efficiency
+Problem Solving	Resolved data loss, SSL issues, schema registry failures	Improved reliability and reduced production incidents
+Quality Focus	Sonar issue fixes and refactoring	Enhanced code maintainability
+End-to-End Ownership	Ingestion to audit logging and monitoring	Ensured smooth and timely delivery
 📌 Overall Summary
-This week showcased end-to-end ownership, cross-team collaboration, and technical depth — from designing structured streaming pipelines and supporting GCP BigQuery migration to solving complex Kafka and schema issues. Your contributions significantly improved data reliability, code quality, and system scalability, while also strengthening team productivity and collaboration.
 
+This week, I demonstrated end-to-end ownership, strong technical depth, and collaborative leadership. I made significant contributions in designing structured streaming pipelines, supporting GCP BigQuery migration, resolving complex Kafka and schema issues, and enabling cross-system integrations. My work improved data reliability, code quality, and pipeline scalability while strengthening team productivity and delivery velocity.
