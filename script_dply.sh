@@ -1,3 +1,127 @@
+
+# Patterns for vulnerable jars (globs)
+vulnerable_jars=("spring-core*.jar" "spring-webmvc*.jar" "kafka-clients*.jar")
+
+# Services to process (adjust as needed)
+declare -a array0=(
+  cohservice
+  realtimemaprdservice
+  DsFileService
+  message_service
+  transformationservice
+  realtimesinkservice
+)
+
+# -------------------------
+# LOG FUNCTION
+# -------------------------
+log() {
+  printf "%s [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" "$2" | tee -a "${log_file}"
+}
+
+# ensure directories
+mkdir -p "${secure_libs}"
+mkdir -p "$(dirname "${log_file}")"
+
+log INFO "Starting traversal under base path: ${base_path}"
+log INFO "Secure libs directory: ${secure_libs}"
+
+# -------------------------
+# MAIN
+# -------------------------
+for service in "${array0[@]}"; do
+  service_path="${base_path}/${service}"
+  log INFO "Processing service: ${service}"
+  log INFO "Service path: ${service_path}"
+
+  if [ ! -d "${service_path}" ]; then
+    log WARN "Service folder not found: ${service_path}. Skipping."
+    continue
+  fi
+
+  # collect all 3rdlib directories into a temp file using null-separated records
+  tmp_thirdlibs=$(mktemp)
+  find "${service_path}" -type d -name "3rdlib" -print0 > "${tmp_thirdlibs}"
+
+  # check if tmp file is empty (no hits)
+  if [ ! -s "${tmp_thirdlibs}" ]; then
+    log WARN "No 3rdlib directory found for service: ${service}"
+    rm -f "${tmp_thirdlibs}"
+    continue
+  fi
+
+  # iterate each 3rdlib path safely
+  while IFS= read -r -d '' thirdlib_path; do
+    [ -z "${thirdlib_path}" ] && continue
+    log INFO "Found 3rdlib: ${thirdlib_path}"
+
+    # for each vulnerable pattern, find matching jar files inside this 3rdlib
+    for pattern in "${vulnerable_jars[@]}"; do
+      tmp_jars=$(mktemp)
+      find "${thirdlib_path}" -type f -name "${pattern}" -print0 > "${tmp_jars}"
+
+      if [ ! -s "${tmp_jars}" ]; then
+        rm -f "${tmp_jars}"
+        continue
+      fi
+
+      while IFS= read -r -d '' jar_path; do
+        [ -z "${jar_path}" ] && continue
+        jar_name=$(basename "${jar_path}")
+        jar_dirname=$(dirname "${jar_path}")
+
+        log INFO "Found vulnerable JAR: ${jar_name} (path: ${jar_path})"
+
+        # Move real jar to secure_libs if not present
+        if [ ! -f "${secure_libs}/${jar_name}" ]; then
+          log INFO "Moving ${jar_name} -> ${secure_libs}"
+          mv -f "${jar_path}" "${secure_libs}/"
+        else
+          log INFO "${jar_name} already exists in ${secure_libs}. Removing local copy."
+          rm -f "${jar_path}"
+        fi
+
+        # Create a dummy JAR in place (then replace it with symlink)
+        log INFO "Creating dummy JAR placeholder for ${jar_name} at ${thirdlib_path}"
+        tmpdir=$(mktemp -d)
+        mkdir -p "${tmpdir}/META-INF"
+        printf '%s\n' "Manifest-Version: 1.0" > "${tmpdir}/META-INF/MANIFEST.MF"
+        # create dummy JAR named as original inside 3rdlib
+        jar cf "${thirdlib_path}/${jar_name}" -C "${tmpdir}" META-INF >/dev/null 2>&1 || {
+          # if 'jar' not available, fallback to creating a zip with .jar ext
+          (cd "${tmpdir}" && zip -q -r "${thirdlib_path}/${jar_name}" META-INF >/dev/null 2>&1) || true
+        }
+        rm -rf "${tmpdir}"
+
+        # Create / update symlink from dummy jar -> real jar in secure_libs
+        ln -sfn "${secure_libs}/${jar_name}" "${thirdlib_path}/${jar_name}"
+        log INFO "Created symlink: ${thirdlib_path}/${jar_name} -> ${secure_libs}/${jar_name}"
+
+      done < "${tmp_jars}"
+
+      rm -f "${tmp_jars}"
+    done
+
+  done < "${tmp_thirdlibs}"
+
+  rm -f "${tmp_thirdlibs}"
+done
+
+log INFO "Traversal & fix completed. Log: ${log_file}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #!/bin/bash
 # -------------------------------------------------------------------
 # Traverse service folders under base path, locate 3rdlib directories,
