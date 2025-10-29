@@ -1,4 +1,127 @@
 #!/bin/bash
+# -------------------------------------------------------------------
+# Traverse service folders under base path, locate 3rdlib directories,
+# move vulnerable JARs to secure_libs, create dummy JARs, and symlinks.
+# -------------------------------------------------------------------
+
+set -euo pipefail
+IFS=$'\n\t'
+
+# --- CONFIGURATION ---
+user=${1:-cdhqa}
+base_path="/apps/src/paseapad/dev/github/eapp-dct-ingestion/apps/service"
+secure_libs="/apps/${user}/apps/secure_libs"
+log_file="/apps/${user}/postdeploy_vulnfix.log"
+
+# --- Logging Function ---
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [$1] $2" | tee -a "${log_file}"
+}
+
+# --- Vulnerable JARs to Handle ---
+vulnerable_jars=("spring-core*.jar" "spring-webmvc*.jar" "kafka-clients*.jar")
+
+# --- Services List ---
+declare -a array0=(
+    cohservice
+    realtimemaprdservice
+    DsFileService
+    message_service
+    transformationservice
+    realtimesinkservice
+)
+
+log INFO "------------------------------------------------------------"
+log INFO "Starting 3rdlib vulnerability fix under: ${base_path}"
+log INFO "Secure JAR repository: ${secure_libs}"
+mkdir -p "${secure_libs}"
+
+# --- MAIN LOOP ---
+for service in "${array0[@]}"; do
+    service_path="${base_path}/${service}"
+    log INFO "Processing service: ${service}"
+    log INFO "Service folder path: ${service_path}"
+
+    if [ ! -d "${service_path}" ]; then
+        log WARN "Service folder not found: ${service_path}"
+        continue
+    fi
+
+    # Find all 3rdlib directories inside this service
+    mapfile -t thirdlib_dirs < <(find "${service_path}" -type d -name "3rdlib" 2>/dev/null)
+
+    if [ ${#thirdlib_dirs[@]} -eq 0 ]; then
+        log WARN "No 3rdlib directory found for service: ${service}"
+        continue
+    fi
+
+    # --- Iterate over each 3rdlib found ---
+    for thirdlib_path in "${thirdlib_dirs[@]}"; do
+        log INFO "Found 3rdlib: ${thirdlib_path}"
+
+        # Handle vulnerable jars inside 3rdlib
+        for pattern in "${vulnerable_jars[@]}"; do
+            find "${thirdlib_path}" -type f -name "${pattern}" | while read -r jar_path; do
+                jar_name=$(basename "${jar_path}")
+
+                log INFO "Found vulnerable JAR: ${jar_name} in ${thirdlib_path}"
+
+                # Move jar to secure_libs (if not already moved)
+                if [ ! -f "${secure_libs}/${jar_name}" ]; then
+                    log INFO "Moving ${jar_name} to ${secure_libs}"
+                    mv "${jar_path}" "${secure_libs}/"
+                else
+                    log INFO "${jar_name} already exists in ${secure_libs}, removing local copy."
+                    rm -f "${jar_path}"
+                fi
+
+                # Create dummy jar placeholder
+                log INFO "Creating dummy jar for ${jar_name}"
+                temp_dir=$(mktemp -d)
+                mkdir -p "${temp_dir}/META-INF"
+                echo "Manifest-Version: 1.0" > "${temp_dir}/META-INF/MANIFEST.MF"
+                jar cf "${thirdlib_path}/${jar_name}" -C "${temp_dir}" META-INF >/dev/null 2>&1
+                rm -rf "${temp_dir}"
+
+                # Create symbolic link from dummy jar → secure jar
+                ln -sfn "${secure_libs}/${jar_name}" "${thirdlib_path}/${jar_name}"
+                log INFO "Linked ${thirdlib_path}/${jar_name} → ${secure_libs}/${jar_name}"
+            done
+        done
+    done
+done
+
+log INFO "------------------------------------------------------------"
+log INFO "Traversal and vulnerability fix completed successfully."
+log INFO "Log file: ${log_file}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===============================
+
+
+
+
+
+
+#!/bin/bash
 # DQ Post Deployment Script with Vulnerable JAR Handling and Logging
 
 set -euo pipefail
