@@ -1,3 +1,34 @@
+Access to Tools & Technology
+
+Employees have the right systems, data, and technology to do their work efficiently.
+
+Example: Cloud-based collaboration tools, clear data access policies, automation, etc.
+
+Empowerment & Autonomy
+
+Team members are trusted to make decisions within their roles.
+
+Less micromanagement, more accountability and ownership.
+
+Psychological Safety & Open Communication
+
+People feel comfortable sharing ideas, raising concerns, and experimenting without fear of blame.
+
+Leadership encourages feedback and collaboration.
+
+Clarity of Goals and Roles
+
+Everyone understands the mission, vision, and their part in achieving team objectives.
+
+Continuous Learning & Development
+
+Access to training, mentorship, and opportunities to grow in role and skillset.
+
+Supportive Leadership
+
+Leaders remove blockers, provide guidance, and focus on enabling success rather than controlling tasks.
+
+
 
 # Remove version info from link name (keep only base jar name)
 link_name=$(echo "${jar_name}" | sed -E 's/-[0-9]+(\.[0-9]+)*(\.[A-Za-z0-9]+)*\.jar$/.jar/')
