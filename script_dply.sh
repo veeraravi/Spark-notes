@@ -1,3 +1,47 @@
+
+You’re essentially acting as both a voice of employees and a change ambassador. Key expectations include:
+
+1. Gathering Insights
+
+Listen to colleagues and understand what enables or blocks them in their daily work.
+
+Examples: lack of tools, unclear processes, poor collaboration, too many approvals, or not enough recognition.
+
+You might do this via surveys, interviews, or informal conversations.
+
+2. Representing Diverse Perspectives
+
+Bring balanced feedback — not just your own opinions but those of different teams or functions.
+
+Ensure all voices (technical, non-technical, remote, new hires, etc.) are represented.
+
+3. Identifying and Prioritizing Themes
+
+Help categorize feedback into key themes — e.g., process simplification, leadership communication, recognition, autonomy, or psychological safety.
+
+Prioritize what can have the biggest impact on employee experience and productivity.
+
+4. Collaborating to Build Solutions
+
+Brainstorm practical actions or pilot programs to test improvements.
+
+Examples: shorter approval chains, better access to data, mentorship programs, flexible working models, or clearer career paths.
+
+5. Driving Engagement and Communication
+
+Communicate outcomes of the group back to peers — help them see progress.
+
+Encourage others to participate and share feedback openly.
+
+6. Providing Feedback to Leadership
+
+Summarize employee sentiment and improvement ideas to HR, leadership, or the program sponsor.
+
+Highlight “quick wins” and systemic issues that need executive attention.
+
+
+
+
 Access to Tools & Technology
 
 Employees have the right systems, data, and technology to do their work efficiently.
