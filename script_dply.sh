@@ -1,4 +1,27 @@
 
+# Derive simplified jar name (without version)
+link_name=$(echo "${jar_name}" | sed -E 's/-[0-9]+(\.[0-9]+)*([._-][A-Za-z0-9]+)*\.jar$/.jar/')
+
+log INFO "Creating dummy JAR placeholder for ${link_name} (actual: ${jar_name}) at ${thirdlib_path}"
+tmpdir=$(mktemp -d)
+mkdir -p "${tmpdir}/META-INF"
+printf '%s\n' "Manifest-Version: 1.0" > "${tmpdir}/META-INF/MANIFEST.MF"
+
+# Create dummy JAR with simplified name (spring-core.jar)
+jar cf "${thirdlib_path}/${link_name}" -C "${tmpdir}" META-INF >/dev/null 2>&1 || {
+  (cd "${tmpdir}" && zip -q -r "${thirdlib_path}/${link_name}" META-INF >/dev/null 2>&1) || true
+}
+rm -rf "${tmpdir}"
+
+# Create / update symlink: spring-core.jar -> secure_libs/spring-core-5.1.8.RELEASE.jar
+ln -sfn "${secure_libs}/${jar_name}" "${thirdlib_path}/${link_name}"
+log INFO "Created symlink: ${thirdlib_path}/${link_name} -> ${secure_libs}/${jar_name}"
+
+
+
+
+
+
 You’re essentially acting as both a voice of employees and a change ambassador. Key expectations include:
 
 1. Gathering Insights
