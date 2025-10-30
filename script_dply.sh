@@ -1,4 +1,12 @@
 
+# Remove version info from link name (keep only base jar name)
+link_name=$(echo "${jar_name}" | sed -E 's/-[0-9]+(\.[0-9]+)*(\.[A-Za-z0-9]+)*\.jar$/.jar/')
+ln -sfn "${secure_libs}/${jar_name}" "${thirdlib_path}/${link_name}"
+log INFO "Created symlink: ${thirdlib_path}/${link_name} -> ${secure_libs}/${jar_name}"
+
+
+===========================
+
 # Patterns for vulnerable jars (globs)
 vulnerable_jars=("spring-core*.jar" "spring-webmvc*.jar" "kafka-clients*.jar")
 
